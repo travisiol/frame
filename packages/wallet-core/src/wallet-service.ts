@@ -1,3 +1,7 @@
+import { readTokenBalances } from "@frame/chain";
+import { BRIDGE_SOURCE_CHAIN_IDS } from "@frame/config";
+import { activityFromIncoming } from "@frame/transaction-engine";
+import type { IncomingFunds } from "@frame/types";
 import { formatUnits, parseUnits, type PublicClient } from "viem";
 import type {
   Account,
@@ -100,6 +104,8 @@ const KEYS = {
   hidden: "hiddenTokens",
   custom: "customTokens",
   localTx: "localTx",
+  balances: "balanceBaseline",
+  incoming: "incomingFunds",
 } as const;
 
 const SESSION = { key: "vaultKey", lastActivity: "lastActivityAt" } as const;
@@ -158,6 +164,10 @@ export class WalletService implements WalletApi {
   private readonly kdfIterations: number;
   private initialized: Promise<void> | null = null;
   private readonly listeners = new Set<(e: WalletEvent) => void>();
+  /** Last known balances per chain:account:token — the incoming-funds watcher diffs against it. */
+  private balanceBaseline: Record<string, string> = {};
+  private incoming: IncomingFunds[] = [];
+  private polling: Promise<IncomingFunds[]> | null = null;
 
   constructor(private readonly opts: WalletServiceOptions) {
     this.mode = opts.mode;
@@ -200,6 +210,8 @@ export class WalletService implements WalletApi {
     this.hiddenTokens = (await s.get<string[]>(KEYS.hidden)) ?? [];
     this.customTokens = (await s.get<TokenInfo[]>(KEYS.custom)) ?? [];
     this.localTx = (await s.get<LocalTxRecord[]>(KEYS.localTx)) ?? [];
+    this.balanceBaseline = (await s.get<Record<string, string>>(KEYS.balances)) ?? {};
+    this.incoming = (await s.get<IncomingFunds[]>(KEYS.incoming)) ?? [];
     await this.restoreSession();
     if (this.demo) for (const a of this.accounts) this.demo.seedAccount(a.address);
   }
@@ -367,6 +379,7 @@ export class WalletService implements WalletApi {
       hiddenTokens: this.hiddenTokens,
       customTokens: this.customTokens,
       localActivity: this.localTx.map(activityFromRecord),
+      incoming: this.incoming,
     };
   }
 
@@ -816,10 +829,80 @@ export class WalletService implements WalletApi {
     return this.gateway.request(p.chainId ?? this.chainId, p.method, p.params ?? []);
   }
 
+  // ---------------------------------------------------------------------------
+  // Incoming-funds watcher
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Looks for funds that arrived since the last check, for every account, on
+   * the current Robinhood Chain (ETH + registry and custom tokens) and on the
+   * bridge source chains (ETH). The first run only records a baseline. New
+   * arrivals are persisted, listed in activity and announced with a "funds"
+   * event — unless a transaction this wallet sent on that chain just went
+   * through (a swap's output is not "incoming funds").
+   */
+  async pollIncoming(): Promise<IncomingFunds[]> {
+    await this.init();
+    if (!this.polling) this.polling = this.detectIncoming().finally(() => (this.polling = null));
+    return this.polling;
+  }
+
+  private async detectIncoming(): Promise<IncomingFunds[]> {
+    if (this.accounts.length === 0) return [];
+    const baseline = this.balanceBaseline;
+    const first = Object.keys(baseline).length === 0;
+    const next: Record<string, string> = { ...baseline };
+    const found: IncomingFunds[] = [];
+    const chains = [this.chainId, ...BRIDGE_SOURCE_CHAIN_IDS];
+    for (const account of this.accounts) {
+      const owner = account.address.toLowerCase();
+      for (const chainId of chains) {
+        const tokens = chainId === this.chainId ? [...getRegistry(chainId), ...this.customTokens.filter((t) => t.chainId === chainId)] : [nativeToken(chainId)];
+        let balances: Map<string, bigint>;
+        try {
+          balances = await readTokenBalances(this.client(chainId), account.address, tokens);
+        } catch {
+          continue; // chain unreachable right now — keep its old baseline
+        }
+        const quiet = this.recentOwnTx(chainId, account.address);
+        for (const token of tokens) {
+          const raw = balances.get(token.address === "native" ? "native" : token.address);
+          if (raw === undefined) continue;
+          const key = `${chainId}:${owner}:${token.address.toLowerCase()}`;
+          const prev = baseline[key];
+          next[key] = raw.toString();
+          if (first || prev === undefined) continue;
+          const delta = raw - BigInt(prev);
+          if (delta <= 0n || quiet) continue;
+          found.push({ id: newId("in"), chainId, address: account.address, tokenAddress: token.address, symbol: token.symbol, decimals: token.decimals, amountRaw: delta.toString(), detectedAt: this.now() });
+        }
+      }
+    }
+    this.balanceBaseline = next;
+    await this.persist(KEYS.balances, next);
+    if (found.length) {
+      this.incoming = [...found, ...this.incoming].slice(0, 100);
+      await this.persist(KEYS.incoming, this.incoming);
+      for (const item of found) this.emit({ type: "funds", item });
+      this.emit({ type: "state" });
+    }
+    return found;
+  }
+
+  /** True when this account sent a transaction on this chain in the last few minutes. */
+  private recentOwnTx(chainId: number, address: Address): boolean {
+    const since = this.now() - 3 * 60_000;
+    return this.localTx.some((r) => r.chainId === chainId && sameAddress(r.from, address) && r.createdAt >= since);
+  }
+
   async getActivity(p: { address: Address; chainId?: number }): Promise<ActivityItem[]> {
     await this.init();
     const chainId = p.chainId ?? this.chainId;
-    const local = this.localTx.filter((r) => r.chainId === chainId && sameAddress(r.from, p.address)).map(activityFromRecord);
+    const local = [
+      ...this.localTx.filter((r) => r.chainId === chainId && sameAddress(r.from, p.address)).map(activityFromRecord),
+      // Arrivals are listed on every network's activity: the point is to know where the funds are.
+      ...this.incoming.filter((i) => sameAddress(i.address, p.address)).map(activityFromIncoming),
+    ];
     if (this.demo) return mergeActivity(local, this.demo.getActivity(p.address));
     const lookup = (cid: number, a: Address | "native") => this.lookupToken(cid, a);
     const explorer = await fetchExplorerActivity(chainId, p.address, lookup, this.opts.fetchImpl);

@@ -33,7 +33,15 @@ const service = new WalletService({
   rpcRelay: rpcRelay ? relayRpcOverrides(rpcRelay, window.location.origin) : undefined,
   marketData: market,
 });
-void service.init();
+void service.init().then(() => {
+  // Incoming-funds watcher (the extension runs the same check from its service worker).
+  const poll = () => void service.pollIncoming().catch(() => undefined);
+  poll();
+  window.setInterval(poll, 30_000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) poll();
+  });
+});
 
 function useWide() {
   const [wide, setWide] = useState(() => window.matchMedia("(min-width: 900px)").matches);

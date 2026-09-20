@@ -175,9 +175,14 @@ export function isStockLike(token: TokenInfo): boolean {
   return STOCK_LIKE_CATEGORIES.has(token.category);
 }
 
+/** Contracts deployed at the same address on every supported chain. A label, never a safety promise. */
+export const GLOBAL_KNOWN_CONTRACTS: Record<string, string> = {
+  "0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae": "LI.FI Diamond (swap & bridge router)",
+};
+
 export function knownSpenderLabel(chainId: number, address: string): string | undefined {
   const a = address.toLowerCase();
-  return FILES[chainId]?.knownSpenders.find((s) => s.address === a)?.label;
+  return FILES[chainId]?.knownSpenders.find((s) => s.address === a)?.label ?? GLOBAL_KNOWN_CONTRACTS[a];
 }
 
 /**

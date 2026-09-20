@@ -148,7 +148,7 @@ export interface ActivityItem {
   demo?: boolean;
   /** Token contracts involved (lowercase), used by the STOCK TOKENS filter. */
   tokenAddresses?: string[];
-  source: "local" | "explorer" | "logs" | "demo";
+  source: "local" | "explorer" | "logs" | "demo" | "watcher";
   raw?: unknown;
 }
 
@@ -399,6 +399,8 @@ export interface BridgeQuote {
   estimatedSeconds: number | null;
   route: string[];
   tx?: TxRequest;
+  /** Native-token cost of the source-chain gas, in wei, when the provider estimates it. */
+  gasCostWei?: string;
   approval?: { spender: Address; amount: string };
   demo?: boolean;
   raw?: unknown;
@@ -443,6 +445,19 @@ export interface Settings {
   onboardingComplete: boolean;
 }
 
+/** Funds detected arriving at one of the wallet's addresses, on any supported chain. */
+export interface IncomingFunds {
+  id: string;
+  chainId: number;
+  address: Address;
+  tokenAddress: Address | "native";
+  symbol: string;
+  decimals: number;
+  /** Raw integer amount received. */
+  amountRaw: string;
+  detectedAt: number;
+}
+
 export interface WalletSnapshot {
   version: string;
   mode: AppMode;
@@ -461,6 +476,8 @@ export interface WalletSnapshot {
   hiddenTokens: string[];
   customTokens: TokenInfo[];
   localActivity: ActivityItem[];
+  /** Funds detected arriving on any supported chain, newest first. */
+  incoming: IncomingFunds[];
 }
 
 export type WalletEvent =
@@ -471,6 +488,7 @@ export type WalletEvent =
   | { type: "requestResolved"; requestId: string }
   | { type: "tx"; hash: Hex; status: ActivityStatus; chainId: number }
   | { type: "accountsChanged"; accounts: Address[]; origin?: string }
-  | { type: "chainChanged"; chainId: number };
+  | { type: "chainChanged"; chainId: number }
+  | { type: "funds"; item: IncomingFunds };
 
 export * from "./errors";

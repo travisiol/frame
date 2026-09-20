@@ -1,3 +1,6 @@
+import type { IncomingFunds as IncomingFundsItem } from "@frame/types";
+import { chainName as chainLabel } from "@frame/config";
+import { formatTokenAmount as formatAmount } from "@frame/chain";
 import { formatUnits, type Hex } from "viem";
 import type { ActivityItem, ActivityKind, Address, AssetChange, TokenInfo, TxIntentKind } from "@frame/types";
 import { explorerTxUrl } from "@frame/config";
@@ -198,7 +201,7 @@ export function activityFromTransferLog(
 
 /** Merges sources, de-duplicating by hash. Local records win (they carry intent + status), then explorer, then logs. */
 export function mergeActivity(...lists: ActivityItem[][]): ActivityItem[] {
-  const rank = { local: 0, demo: 0, explorer: 1, logs: 2 } as const;
+  const rank = { local: 0, demo: 0, watcher: 0, explorer: 1, logs: 2 } as const;
   const byHash = new Map<string, ActivityItem>();
   const noHash: ActivityItem[] = [];
   for (const list of lists) {
@@ -238,4 +241,21 @@ export function filterActivity(items: ActivityItem[], filter: ActivityFilter, is
     case "stock-tokens":
       return items.filter((i) => (i.tokenAddresses ?? []).some(isStockToken));
   }
+}
+
+/** Funds the watcher saw arriving. No hash (a native transfer leaves no log), so it never merges with explorer items. */
+export function activityFromIncoming(item: IncomingFundsItem): ActivityItem {
+  const amount = formatAmount(item.amountRaw, item.decimals);
+  return {
+    id: `in:${item.id}`,
+    kind: "receive",
+    title: `Received ${amount} ${item.symbol}`,
+    subtitle: `on ${chainLabel(item.chainId)} · detected by the wallet`,
+    amounts: [{ symbol: item.symbol, amount, sign: "+", tokenAddress: item.tokenAddress }],
+    timestamp: item.detectedAt,
+    status: "confirmed",
+    chainId: item.chainId,
+    tokenAddresses: item.tokenAddress === "native" ? [] : [item.tokenAddress.toLowerCase()],
+    source: "watcher",
+  };
 }

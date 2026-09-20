@@ -120,7 +120,7 @@ export class DemoChain implements ChainGateway {
     return this.ledger(chainId).eth.get(lc(owner)) ?? 0n;
   }
 
-  private setEth(chainId: number, owner: string, value: bigint) {
+  setEth(chainId: number, owner: string, value: bigint) {
     this.ledger(chainId).eth.set(lc(owner), value);
   }
 

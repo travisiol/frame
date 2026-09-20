@@ -114,7 +114,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </IconButton>
         </header>
         <main className="min-h-0 flex-1 overflow-hidden">
-          <div className="mx-auto h-full w-full max-w-[840px] px-2 md:px-4">{children}</div>
+          <div className="mx-auto h-full w-full max-w-[880px] px-2 md:px-4">{children}</div>
         </main>
         <nav className="flex items-stretch border-t border-line bg-surface md:hidden">
           {POPUP_TABS.map((t) => {

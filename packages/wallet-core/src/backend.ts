@@ -4,6 +4,7 @@ import type {
   Address,
   AddressBookEntry,
   Allowance,
+  IncomingFunds,
   NetworkMode,
   Settings,
   TokenInfo,
@@ -73,6 +74,8 @@ export interface WalletApi {
   getActivity(p: { address: Address; chainId?: number }): Promise<ActivityItem[]>;
   getDetectedTokens(p: { address: Address; chainId?: number }): Promise<TokenInfo[]>;
   getAllowances(p: { address: Address; chainId?: number }): Promise<Allowance[]>;
+  /** Checks every account for funds that arrived since the last check, on every supported chain. Returns the new arrivals. */
+  pollIncoming(): Promise<IncomingFunds[]>;
 
   // --- security ------------------------------------------------------------
   exportRecovery(p: { password: string; accountId?: string }): Promise<{ mnemonic?: string; privateKey?: string }>;
@@ -120,6 +123,7 @@ export const WALLET_API_METHODS: readonly WalletApiMethod[] = [
   "getActivity",
   "getDetectedTokens",
   "getAllowances",
+  "pollIncoming",
   "exportRecovery",
   "changePassword",
   "saveAddressBookEntry",

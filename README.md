@@ -81,8 +81,9 @@ Built and verified in this order (the MVP build order from the brief): extension
 
 What is real today:
 
-- The vault, keyring, permission model, signing pipeline, review/simulation, dApp provider, relay allow-lists and environment defaults are covered by 106 automated tests (`npm run check`).
+- The vault, keyring, permission model, signing pipeline, review/simulation, dApp provider, relay allow-lists and environment defaults are covered by 114 automated tests (`npm run check`).
 - The extension has been loaded into a real headless Chrome (`node scripts/ext-check.mjs`): onboarding, unlocked popup, EIP-6963 discovery and a dApp `eth_requestAccounts` approved through the approval window, with screenshots.
+- Funds are watched on every supported chain: an incoming-funds watcher (service-worker alarm in the extension, a timer in the web app) diffs balances every 30 s on Robinhood Chain (ETH + registry tokens) and on Ethereum, Arbitrum One and Base (ETH), announces arrivals (OS notification in the extension, toast in both), lists them in Activity, and the portfolio shows "Funds on other networks" with a one-click move to Robinhood Chain. Bridges review as "Move X ETH to Robinhood Chain" on the source network, with LI.FI's router named, gas kept aside by Max, and a refusal to sign what the balance cannot pay for.
 - The web app (`/app/`) runs LIVE on Robinhood Chain mainnet through the same-origin relays; balances, registry tokens and reference prices come from the real chain and the real price sources. When a reference source is unavailable (Yahoo rate-limits datacenter IPs), the token's own onchain price from LI.FI is shown instead — labelled, and without a fabricated 24h change.
 - Swaps and bridges are real routes quoted by LI.FI, which supports Robinhood Chain (Nordstern, KyberSwap, OpenOcean… for swaps; Across, Relay, Layerswap, Symbiosis… for bridges from Ethereum, Arbitrum One and Base). A route is only shown when the API returns one; the wallet simulates and signs the provider's transaction after your approval.
 

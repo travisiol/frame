@@ -89,9 +89,7 @@ export function DownloadPage() {
           </motion.p>
           <motion.h1 className="display-xl mt-5 inline-flex flex-wrap items-center justify-center gap-x-5 gap-y-2" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease, delay: 0.08 }}>
             <span>Download for</span>
-            <span className="inline-flex h-[0.9em] w-[0.9em] items-center justify-center rounded-[22%] bg-accent text-base">
-              <Logo size={40} className="h-[62%] w-[62%]" />
-            </span>
+            <Logo size={80} className="h-[0.9em] w-[0.9em]" />
             <span>desktop</span>
           </motion.h1>
           <motion.p className="lede mx-auto mt-6 max-w-[46ch]" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease, delay: 0.16 }}>
@@ -289,9 +287,7 @@ function ArtLoadUnpacked({ page }: { page: string }) {
         <span className="rounded-full border border-line px-3 py-1.5 text-ink-2">Update</span>
       </div>
       <div className="mt-3 flex items-center gap-3 rounded-[12px] border border-line bg-card px-3 py-2.5">
-        <span className="flex h-7 w-7 items-center justify-center rounded-[22%] bg-accent text-base">
-          <Logo size={14} />
-        </span>
+        <Logo size={28} />
         <span className="text-[13px] font-semibold text-ink">{BRAND.name}</span>
         <span className="ml-auto text-[11px] text-ink-3">{BRAND.version}</span>
         <span className="relative inline-flex h-4 w-7 items-center rounded-full bg-accent">

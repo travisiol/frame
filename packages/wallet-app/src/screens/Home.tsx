@@ -1,3 +1,4 @@
+import { EmptyPortfolio, OtherNetworksCard } from "../components/OtherNetworks";
 import { useMemo } from "react";
 import { formatUsd } from "@frame/chain";
 import { BRAND } from "@frame/config";
@@ -118,6 +119,8 @@ export function HomeScreen() {
           <ActionTile label="Bridge" icon={<Icon.Bridge size={17} />} onClick={() => navigate("/bridge")} disabled={watchOnly} />
         </div>
 
+        <OtherNetworksCard compact />
+
         {watchOnly && (
           <Banner tone="info" className="mx-3 mt-3" title="Watch only">
             This account has no key on this device. You can view its portfolio and activity but cannot sign.
@@ -179,16 +182,7 @@ export function HomeScreen() {
               <div className="px-2 py-8 text-center text-[13px] text-ink-2">
                 {portfolio && portfolio.holdings.length === 0 ? (
                   <>
-                    <div className="text-ink">No assets yet</div>
-                    <div className="mt-1 text-[12px]">Receive ETH or move funds to Robinhood Chain to get started.</div>
-                    <div className="mt-3 flex justify-center gap-2">
-                      <Button size="sm" onClick={() => navigate("/receive")}>
-                        Receive
-                      </Button>
-                      <Button size="sm" onClick={() => navigate("/bridge")}>
-                        Bridge
-                      </Button>
-                    </div>
+                    <EmptyPortfolio compact />
                   </>
                 ) : (
                   "Nothing in this category."

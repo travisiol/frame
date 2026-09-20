@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PublicClient } from "viem";
 import type { Account, Address, PriceHistory, PriceQuote, PriceRange, TokenInfo } from "@frame/types";
-import { ETHEREUM_MAINNET_ID } from "@frame/config";
+import { ARBITRUM_ONE_ID, BASE_ID, ETHEREUM_MAINNET_ID } from "@frame/config";
 import { createProxiedClient, readTokenBalances } from "@frame/chain";
 import { getRegistry, isStockLike, looksLikeSpam, nativeToken, isImpersonatingSymbol } from "@frame/token-registry";
 import { priceKey } from "@frame/markets";
@@ -242,4 +242,52 @@ export function useSourceChainBalance(address?: Address, chainId: number = ETHER
 
 export function isStockToken(token: TokenInfo | undefined): boolean {
   return !!token && isStockLike(token);
+}
+
+// ---------------------------------------------------------------------------
+// Funds on other networks (bridge sources) — same address, different chain.
+// ---------------------------------------------------------------------------
+
+export interface OtherChainFunds {
+  chainId: number;
+  wei: bigint;
+  usd: number | null;
+}
+
+/** ETH held by the address on Ethereum, Arbitrum One and Base — what can be moved to Robinhood Chain. */
+export function useOtherChainFunds(address?: Address): { funds: OtherChainFunds[]; totalUsd: number | null; loading: boolean } {
+  const eth = useMemo(() => nativeToken(ETHEREUM_MAINNET_ID), []);
+  const price = useTokenPrice(eth);
+  const a = useSourceChainBalance(address, ETHEREUM_MAINNET_ID);
+  const b = useSourceChainBalance(address, ARBITRUM_ONE_ID);
+  const c = useSourceChainBalance(address, BASE_ID);
+  const p = price.data?.priceUsd ?? null;
+  return useMemo(() => {
+    const funds: OtherChainFunds[] = [];
+    const rows: [number, string | undefined][] = [
+      [ETHEREUM_MAINNET_ID, a.data],
+      [ARBITRUM_ONE_ID, b.data],
+      [BASE_ID, c.data],
+    ];
+    for (const [chainId, raw] of rows) {
+      const wei = raw ? BigInt(raw) : 0n;
+      if (wei > 0n) funds.push({ chainId, wei, usd: p === null ? null : (Number(wei) / 1e18) * p });
+    }
+    const totalUsd = p === null ? null : funds.reduce((s, f) => s + (f.usd ?? 0), 0);
+    return { funds, totalUsd, loading: a.isPending || b.isPending || c.isPending };
+  }, [a.data, b.data, c.data, a.isPending, b.isPending, c.isPending, p]);
+}
+
+/** Gas to keep aside on a source chain before bridging a whole balance (≈ one bridge deposit, with margin). */
+export function useGasReserve(chainId: number) {
+  const client = useChainClient(chainId);
+  return useQuery({
+    queryKey: ["gas-reserve", chainId],
+    queryFn: async () => {
+      const fees = await client.estimateFeesPerGas().catch(() => null);
+      const perGas = fees?.maxFeePerGas ?? fees?.gasPrice ?? 0n;
+      return ((perGas * 120_000n * 125n) / 100n).toString();
+    },
+    staleTime: 30_000,
+  });
 }

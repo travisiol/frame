@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseUnits } from "viem";
 import type { Address, BridgeQuote, BridgeQuoteRequest, TxResult, TxReview } from "@frame/types";
-import { BRIDGE_SOURCE_CHAIN_IDS, OFFICIAL_BRIDGE_URL, chainName } from "@frame/config";
+import { BRAND, BRIDGE_SOURCE_CHAIN_IDS, OFFICIAL_BRIDGE_URL, chainName } from "@frame/config";
 import { formatTokenAmount, formatUsd } from "@frame/chain";
 import { nativeToken } from "@frame/token-registry";
 import { bestBridgeQuote } from "@frame/markets";
@@ -9,8 +9,8 @@ import { humanizeError } from "@frame/transaction-engine";
 import { Banner, Button, Icon, ListRow, ScreenHeader, Sheet, Spinner, TokenAvatar, cx } from "@frame/ui";
 import { useApp, useBackend } from "../context";
 import { useSnapshot } from "../state/store";
-import { useSelectedAccount, useSourceChainBalance, useTokenPrice } from "../data/hooks";
-import { goBack, useNavigate } from "../nav";
+import { useGasReserve, useSelectedAccount, useSourceChainBalance, useTokenPrice } from "../data/hooks";
+import { goBack, useNavigate, useRoute } from "../nav";
 import { ExplorerLink } from "../components/common";
 import { TxReviewCard } from "../components/TxReviewCard";
 import { ErrorBanner } from "./Send";
@@ -19,16 +19,23 @@ type Phase = "form" | "review" | "success";
 
 const DEFAULT_SOURCE = BRIDGE_SOURCE_CHAIN_IDS[0]!;
 
+function sourceFromParam(value: string | undefined): number {
+  const id = Number(value);
+  return BRIDGE_SOURCE_CHAIN_IDS.includes(id) ? id : DEFAULT_SOURCE;
+}
+
 export function BridgeScreen() {
   const { bridgeProviders, openExternal } = useApp();
+  const { params } = useRoute();
   const backend = useBackend();
   const snap = useSnapshot();
   const account = useSelectedAccount();
   const navigate = useNavigate();
-  const [fromChain, setFromChain] = useState<number>(DEFAULT_SOURCE);
+  const [fromChain, setFromChain] = useState<number>(() => sourceFromParam(params.from));
   const eth = useMemo(() => nativeToken(fromChain), [fromChain]);
   const price = useTokenPrice(eth);
   const sourceBalance = useSourceChainBalance(account?.address, fromChain);
+  const reserve = useGasReserve(fromChain);
   const [amount, setAmount] = useState("");
   const [quotes, setQuotes] = useState<{ best: BridgeQuote | null; all: BridgeQuote[]; errors: { providerId: string; error: string }[] } | null>(null);
   const [selected, setSelected] = useState<BridgeQuote | null>(null);
@@ -51,7 +58,13 @@ export function BridgeScreen() {
     }
   }, [amount]);
   const balance = sourceBalance.data ? BigInt(sourceBalance.data) : null;
+  const reserveWei = reserve.data ? BigInt(reserve.data) : null;
+  // "Max" keeps enough ETH aside for the source-chain gas — the whole balance can never be bridged.
+  const max = balance === null ? null : reserveWei === null ? balance : balance > reserveWei ? balance - reserveWei : 0n;
   const exceeds = balance !== null && parsed !== null && parsed > balance;
+  // Once a route is known, its own gas estimate is the truth: amount + gas must fit in the balance.
+  const gasCost = selected?.gasCostWei ? BigInt(selected.gasCostWei) : null;
+  const shortfall = !exceeds && balance !== null && parsed !== null && gasCost !== null && parsed + gasCost > balance ? parsed + gasCost - balance : null;
   const watchOnly = account?.kind === "watch";
   const toChain = snap?.chainId ?? 4663;
   const noProviders = bridgeProviders.length === 0;
@@ -80,12 +93,23 @@ export function BridgeScreen() {
     };
   }, [parsed, account, bridgeProviders, eth, fromChain, toChain, noProviders]);
 
+  const outFormatted = selected ? formatTokenAmount(BigInt(selected.amountOut), 18) : null;
+  const eta = selected?.estimatedSeconds === null || selected?.estimatedSeconds === undefined ? "—" : selected.estimatedSeconds < 90 ? `~${selected.estimatedSeconds} sec` : `~${Math.round(selected.estimatedSeconds / 60)} min`;
+
+  const useMax = () => {
+    if (max === null) return;
+    setAmount(max > 0n ? formatTokenAmount(max, 18, 18).replace(/,/g, "") : "0");
+  };
+
   const start = async () => {
     if (!selected?.tx) return;
     setBusy(true);
     setError(null);
     try {
-      const r = await backend.prepareTransaction({ request: selected.tx, meta: { kind: "bridge", provider: selected.providerName, fromChain: String(fromChain), toChain: String(toChain) } });
+      const r = await backend.prepareTransaction({
+        request: selected.tx,
+        meta: { kind: "bridge", provider: selected.providerName, fromChain: String(fromChain), toChain: String(toChain), amountOut: outFormatted ?? "", eta },
+      });
       setReview(r);
       setPhase("review");
     } catch (e) {
@@ -112,14 +136,22 @@ export function BridgeScreen() {
     }
   };
 
-  const outFormatted = selected ? formatTokenAmount(BigInt(selected.amountOut), 18) : null;
-  const eta = selected?.estimatedSeconds === null || selected?.estimatedSeconds === undefined ? "—" : selected.estimatedSeconds < 90 ? `~${selected.estimatedSeconds} sec` : `~${Math.round(selected.estimatedSeconds / 60)} min`;
+  const cannotAfford = review?.risks.some((r) => r.code === "LOW_GAS" && r.level === "high") ?? false;
 
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader
         title={phase === "review" ? "Review" : "Move to Robinhood Chain"}
-        onBack={phase === "success" ? undefined : phase === "review" ? () => { if (review) void backend.discardReview({ reviewId: review.reviewId }); setPhase("form"); } : () => goBack("/")}
+        onBack={
+          phase === "success"
+            ? undefined
+            : phase === "review"
+              ? () => {
+                  if (review) void backend.discardReview({ reviewId: review.reviewId });
+                  setPhase("form");
+                }
+              : () => goBack("/")
+        }
         subtitle={`${chainName(fromChain)} → ${chainName(toChain)}`}
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
@@ -143,18 +175,21 @@ export function BridgeScreen() {
             <div className="card px-4 py-3">
               <div className="flex items-center justify-between">
                 <span className="label">From · {chainName(fromChain)}</span>
-                <button className="text-[12px] text-ink-2 hover:text-ink" onClick={() => balance !== null && setAmount(formatTokenAmount(balance, 18, 18).replace(/,/g, ""))}>
-                  {balance === null ? (sourceBalance.isError ? "Balance unavailable" : "Loading balance…") : `Balance ${formatTokenAmount(balance, 18)} ETH`} {balance !== null && <span className="font-semibold text-accent">· Max</span>}
+                <button className="text-[12px] text-ink-2 hover:text-ink" onClick={useMax} disabled={max === null}>
+                  {balance === null ? (sourceBalance.isError ? "Balance unavailable" : "Loading balance…") : `Balance ${formatTokenAmount(balance, 18)} ETH`} {max !== null && <span className="font-semibold text-accent">· Max</span>}
                 </button>
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <input className={cx("num min-w-0 flex-1 bg-transparent text-[26px] font-semibold text-ink outline-none placeholder:text-ink-3", exceeds && "text-loss")} placeholder="0" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ""))} />
+                <input className={cx("num min-w-0 flex-1 bg-transparent text-[26px] font-semibold text-ink outline-none placeholder:text-ink-3", (exceeds || shortfall !== null) && "text-loss")} placeholder="0" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ""))} />
                 <span className="flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3">
                   <TokenAvatar symbol="ETH" category="native" size={24} />
                   <span className="text-[13px] font-semibold text-ink">ETH</span>
                 </span>
               </div>
-              <div className="mt-1 text-[12px] text-ink-3">{price.data?.priceUsd && parsed ? `≈ ${formatUsd((Number(parsed) / 1e18) * price.data.priceUsd)}` : ""}</div>
+              <div className="mt-1 flex items-center justify-between text-[12px] text-ink-3">
+                <span>{price.data?.priceUsd && parsed ? `≈ ${formatUsd((Number(parsed) / 1e18) * price.data.priceUsd)}` : ""}</span>
+                {reserveWei !== null && balance !== null && balance > 0n && <span>Max keeps ≈ {formatTokenAmount(reserveWei, 18, 6)} ETH for the {chainName(fromChain)} fee</span>}
+              </div>
             </div>
             <div className="flex justify-center text-ink-3">
               <Icon.Receive size={18} />
@@ -167,9 +202,23 @@ export function BridgeScreen() {
               <div className="num mt-2 text-[26px] font-semibold text-ink">{outFormatted ? `${outFormatted} ETH` : <span className="text-ink-3">0 ETH</span>}</div>
               <div className="mt-1 text-[12px] text-ink-3">{selected ? `Estimated · ${eta}` : "Arrives in your Robinhood Chain account"}</div>
             </div>
+            {balance !== null && balance === 0n && (
+              <Banner tone="info" title={`Nothing on ${chainName(fromChain)}`}>
+                This account holds no ETH there. Pick the network your funds are on, or receive ETH first.
+              </Banner>
+            )}
             {exceeds && (
               <Banner tone="danger" title={`Not enough ETH on ${chainName(fromChain)}`}>
                 You hold {balance !== null ? formatTokenAmount(balance, 18) : "0"} ETH there.
+              </Banner>
+            )}
+            {shortfall !== null && (
+              <Banner tone="danger" title="Leave room for the network fee">
+                Bridging this amount costs about {gasCost !== null ? formatTokenAmount(gasCost, 18, 6) : "?"} ETH in {chainName(fromChain)} gas, {formatTokenAmount(shortfall, 18, 6)} ETH more than you have.{" "}
+                <button className="font-semibold underline" onClick={useMax}>
+                  Use Max
+                </button>{" "}
+                to move everything except the fee.
               </Banner>
             )}
             {quotes && !selected && parsed !== null && !quoting && (
@@ -197,6 +246,12 @@ export function BridgeScreen() {
                   <span className="text-ink-2">Fees</span>
                   <span className="num text-ink">{selected.feeUsd === null ? "—" : formatUsd(selected.feeUsd)}</span>
                 </div>
+                {gasCost !== null && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-ink-2">{chainName(fromChain)} gas</span>
+                    <span className="num text-ink">≈ {formatTokenAmount(gasCost, 18, 6)} ETH</span>
+                  </div>
+                )}
                 {selected.demo && (
                   <div className="flex items-center justify-between py-2.5">
                     <span className="text-ink-2">Mode</span>
@@ -206,7 +261,7 @@ export function BridgeScreen() {
               </div>
             )}
             {error && <ErrorBanner error={error} showTech={showTech} onToggle={() => setShowTech((v) => !v)} />}
-            <Button variant="primary" full disabled={!selected?.tx || exceeds || watchOnly} loading={busy} onClick={start}>
+            <Button variant="primary" full disabled={!selected?.tx || exceeds || shortfall !== null || watchOnly} loading={busy} onClick={start}>
               MOVE FUNDS
             </Button>
             <p className="px-1 text-center text-[11px] text-ink-3">
@@ -232,8 +287,13 @@ export function BridgeScreen() {
               </div>
             </div>
             <TxReviewCard review={review} compact />
+            {cannotAfford && (
+              <Banner tone="danger" title="This cannot be paid for">
+                The amount plus the {chainName(fromChain)} network fee is more than this account holds there. Go back and use Max.
+              </Banner>
+            )}
             {error && <ErrorBanner error={error} showTech={showTech} onToggle={() => setShowTech((v) => !v)} />}
-            <Button variant={review.riskLevel === "high" ? "danger" : "primary"} full loading={busy} onClick={confirm}>
+            <Button variant={review.riskLevel === "high" ? "danger" : "primary"} full loading={busy} disabled={cannotAfford} onClick={confirm}>
               MOVE FUNDS
             </Button>
           </div>
@@ -248,6 +308,7 @@ export function BridgeScreen() {
             <div className="num mt-1 text-[14px] text-ink-2">
               {amount} ETH → {chainName(toChain)} · {eta}
             </div>
+            <p className="mt-3 max-w-[300px] text-[12px] leading-relaxed text-ink-3">{BRAND.name} will tell you when it lands on {chainName(toChain)}.</p>
             {result.demo && <div className="mt-2 text-[11px] uppercase tracking-[0.12em] text-accent">Simulated — arrives in a few seconds, nothing was broadcast</div>}
             <div className="mt-4">
               <ExplorerLink url={result.explorerUrl} />

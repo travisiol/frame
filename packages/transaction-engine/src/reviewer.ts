@@ -189,11 +189,23 @@ export async function reviewTransaction(ctx: ReviewContext): Promise<TxReview> {
     }
   }
 
+  // Wallet-initiated flows carry their own intent: a bridge deliberately signs on the source chain,
+  // a swap through an aggregator is a contract call whose meaning the wallet already knows.
+  if (ctx.meta?.kind === "bridge") {
+    const toChain = Number(ctx.meta.toChain);
+    const dest = Number.isFinite(toChain) && toChain > 0 ? chainName(toChain) : "the destination network";
+    title = valueWei > 0n ? `Move ${formatTokenAmount(valueWei, 18)} ETH to ${dest}` : `Move funds to ${dest}`;
+    if (ctx.meta.provider) lines.unshift({ label: "Via", value: ctx.meta.provider });
+    if (ctx.meta.amountOut) lines.push({ label: "Arrives", value: `≈ ${ctx.meta.amountOut} ETH on ${dest}${ctx.meta.eta ? ` · ${ctx.meta.eta}` : ""}` });
+  } else if (ctx.meta?.kind === "swap" && decoded.intent === "contract_call" && ctx.meta.label) {
+    title = ctx.meta.label;
+  }
+
   if (ctx.contractAgeDays !== undefined && ctx.contractAgeDays !== null && ctx.contractAgeDays < 7 && decoded.intent !== "native_transfer") {
     risks.push({ code: "NEW_CONTRACT", level: "caution", title: "New contract", detail: `This contract was deployed ${ctx.contractAgeDays} day(s) ago.` });
   }
 
-  if (prepared.chainId !== ctx.walletChainId) {
+  if (prepared.chainId !== ctx.walletChainId && ctx.meta?.kind !== "bridge") {
     risks.push({ code: "CHAIN_MISMATCH", level: "high", title: "Different network", detail: `This transaction targets chain ${prepared.chainId}, but the wallet is on chain ${ctx.walletChainId}.` });
   }
 

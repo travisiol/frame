@@ -66,7 +66,8 @@ export function Hero() {
         <FloatingField items={FRAME_FLOATING_ITEMS} count={34} seed={17} minSize={30} maxSize={132} avoid={[{ x: 22, y: 22, w: 56, h: 60 }]} />
         <div className="hero-vignette" />
         <div className="hero-content flex min-h-[calc(100svh_-_32px)] flex-col items-center justify-center px-6 py-28 text-center">
-          <motion.p className="eyebrow" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease, delay: 0.1 }}>
+          <motion.img src="/icons/icon-512.png" alt="" width={144} height={144} draggable={false} className="hero-logo" initial={{ opacity: 0, y: 16, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.9, ease }} />
+          <motion.p className="eyebrow mt-7" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease, delay: 0.1 }}>
             Built for Robinhood Chain
           </motion.p>
           <motion.h1 className="display-xl mt-5 max-w-[13ch]" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease, delay: 0.2 }}>
@@ -312,9 +313,7 @@ export function GetStarted() {
         <div className="mt-28 text-center">
           <h3 className="display-xl inline-flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <span>Download for</span>
-            <span className="inline-flex h-[0.9em] w-[0.9em] items-center justify-center rounded-[22%] bg-accent text-base">
-              <Logo size={40} className="h-[62%] w-[62%]" />
-            </span>
+            <Logo size={80} className="h-[0.9em] w-[0.9em]" />
             <span>desktop</span>
           </h3>
           <div className="mt-10 grid gap-4 md:grid-cols-3">

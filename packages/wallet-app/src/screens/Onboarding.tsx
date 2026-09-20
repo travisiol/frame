@@ -4,7 +4,7 @@ import { BRAND } from "@frame/config";
 import { assessPassword, looksLikeMnemonic, looksLikePrivateKey } from "@frame/security";
 import { isValidAddress } from "@frame/chain";
 import { humanizeError } from "@frame/transaction-engine";
-import { Button, Confetti, FRAME_FLOATING_ITEMS, Field, FloatingField, Icon, Logo, PasswordField, cx, useCopy } from "@frame/ui";
+import { Button, Confetti, FRAME_FLOATING_ITEMS, Field, FloatingField, Icon, Logo, PasswordField, cx, useCopy, LOGO_ACCENT } from "@frame/ui";
 import { useApp, useBackend } from "../context";
 import { useAppStore, useSnapshot } from "../state/store";
 import { Disclaimer } from "../components/common";
@@ -103,8 +103,8 @@ function Welcome({ onCreate, onImport, onWatch }: { onCreate: () => void; onImpo
   return (
     <div className="flex h-full flex-col px-7 pb-6 pt-10">
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <motion.span className="flex h-16 w-16 items-center justify-center rounded-[22%] bg-accent text-base shadow-[0_20px_60px_rgba(168,255,96,0.3)]" initial={{ scale: 0.7, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ duration: 0.6, ease }}>
-          <Logo size={34} />
+        <motion.span className="flex h-20 w-20 items-center justify-center rounded-[22%]" style={{ boxShadow: `0 20px 60px ${LOGO_ACCENT}40` }} initial={{ scale: 0.7, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ duration: 0.6, ease }}>
+          <Logo size={80} />
         </motion.span>
         <h1 className="display mt-6 text-[30px] leading-[1] tracking-[-0.03em] text-ink">Welcome to {BRAND.name}</h1>
         <p className="mt-3 text-[14px] text-ink-2">{BRAND.tagline}</p>

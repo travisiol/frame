@@ -8,6 +8,7 @@ import { useAppStore, useSnapshot } from "../state/store";
 import { usePortfolio, useSelectedAccount, useTokens } from "../data/hooks";
 import { useNavigate } from "../nav";
 import { BackupReminder, LowGasBanner } from "../components/common";
+import { EmptyPortfolio, OtherNetworksCard } from "../components/OtherNetworks";
 import { useQuery } from "@tanstack/react-query";
 import { priceKey } from "@frame/markets";
 
@@ -62,7 +63,7 @@ export function DashboardHome() {
 
   return (
     <div className="h-full overflow-y-auto py-4">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_300px]">
         <div className="card px-5 py-4">
           <div className="flex items-start justify-between">
             <div>
@@ -125,6 +126,7 @@ export function DashboardHome() {
             <ActionTile label="Receive" icon={<Icon.Receive size={17} />} onClick={() => navigate("/receive")} />
             <ActionTile label="Bridge" icon={<Icon.Bridge size={17} />} onClick={() => navigate("/bridge")} disabled={watchOnly} />
           </div>
+          <OtherNetworksCard compact className="" />
           {portfolio && !portfolio.pricesUnavailable && portfolio.holdings.length > 0 && (
             <div className="card px-4 py-3">
               <div className="label">Allocation</div>
@@ -194,12 +196,7 @@ export function DashboardHome() {
               <tr>
                 <td className="px-4 py-8 text-center text-ink-2" colSpan={5}>
                   {portfolio && portfolio.holdings.length === 0 ? (
-                    <div>
-                      No assets yet.{" "}
-                      <Button size="xs" className="ml-2" onClick={() => navigate("/bridge")}>
-                        Move funds to Robinhood Chain
-                      </Button>
-                    </div>
+                    <EmptyPortfolio />
                   ) : (
                     "Nothing in this category."
                   )}

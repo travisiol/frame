@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { chainName } from "@frame/config";
+import { BRAND, chainName } from "@frame/config";
 import { checksum } from "@frame/chain";
 import { Banner, Button, Icon, ScreenHeader, useCopy, useToast } from "@frame/ui";
 import { useSnapshot } from "../state/store";
 import { useSelectedAccount } from "../data/hooks";
 import { goBack } from "../nav";
+import { OtherNetworksCard } from "../components/OtherNetworks";
 
 export function ReceiveScreen() {
   const snap = useSnapshot();
@@ -60,8 +61,13 @@ export function ReceiveScreen() {
             SHARE
           </Button>
         </div>
-        <Banner tone="warn" className="mt-4 w-full">
-          Only send assets supported on {snap ? chainName(snap.chainId) : "Robinhood Chain"} to this address. Assets sent from other networks without a bridge may be lost.
+        <div className="card mt-4 w-full px-4 py-3 text-[12px] leading-relaxed text-ink-2">
+          <div className="label mb-1.5">Same address on every network</div>
+          Funds sent on <span className="text-ink">Robinhood Chain</span> show up here right away. If your exchange only offers Ethereum, Arbitrum One or Base, withdraw to this same address there: {BRAND.name} shows the arrival and moves it to Robinhood Chain in one step.
+        </div>
+        <OtherNetworksCard compact className="mt-2 w-full" />
+        <Banner tone="warn" className="mt-2 w-full">
+          Only send assets on {snap ? chainName(snap.chainId) : "Robinhood Chain"}, Ethereum, Arbitrum One or Base to this address. Anything sent on another network may be lost.
         </Banner>
         {snap?.mode === "demo" && (
           <Banner tone="info" className="mt-2 w-full">

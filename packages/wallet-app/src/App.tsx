@@ -1,6 +1,8 @@
 import { useEffect } from "react";
-import { BRAND } from "@frame/config";
-import { Button, Logo, Spinner } from "@frame/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { BRAND, chainName, isPrimaryChain } from "@frame/config";
+import { formatTokenAmount } from "@frame/chain";
+import { Button, Logo, Spinner, useToast } from "@frame/ui";
 import { AppProvider, useApp, type AppEnvironment } from "./context";
 import { useAppStore, useSnapshot } from "./state/store";
 import { useRoute } from "./nav";
@@ -26,9 +28,32 @@ export type { AppEnvironment, Surface } from "./context";
 export function WalletApp({ env }: { env: AppEnvironment }) {
   return (
     <AppProvider env={env}>
+      <FundsWatch />
       <Root />
     </AppProvider>
   );
+}
+
+/** Announces funds the service detects arriving (on any chain) and refreshes balances. */
+function FundsWatch() {
+  const { backend } = useApp();
+  const toast = useToast();
+  const qc = useQueryClient();
+  useEffect(() => {
+    void backend.pollIncoming().catch(() => undefined);
+    return backend.subscribe((e) => {
+      if (e.type !== "funds") return;
+      const it = e.item;
+      toast.push({
+        title: `Received ${formatTokenAmount(it.amountRaw, it.decimals)} ${it.symbol}`,
+        body: isPrimaryChain(it.chainId) ? `On ${chainName(it.chainId)} — it is in your portfolio.` : `On ${chainName(it.chainId)}. Move it to Robinhood Chain from the Bridge tab.`,
+        tone: "success",
+      });
+      void qc.invalidateQueries({ queryKey: ["balances"] });
+      void qc.invalidateQueries({ queryKey: ["activity"] });
+    });
+  }, [backend, toast, qc]);
+  return null;
 }
 
 function Root() {

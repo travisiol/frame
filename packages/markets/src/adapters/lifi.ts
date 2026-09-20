@@ -16,7 +16,7 @@ interface LifiQuoteResponse {
     approvalAddress?: string;
     executionDuration?: number;
     feeCosts?: { amountUSD?: string }[];
-    gasCosts?: { amountUSD?: string }[];
+    gasCosts?: { amountUSD?: string; amount?: string }[];
   };
   transactionRequest?: { to?: string; data?: string; value?: string; gasLimit?: string; chainId?: number };
   includedSteps?: { tool?: string; action?: { fromToken?: { symbol?: string }; toToken?: { symbol?: string } } }[];
@@ -61,6 +61,15 @@ export class LifiAdapter implements SwapProvider, BridgeProvider {
     return Number.isFinite(n) ? n : null;
   }
 
+  private sumWei(list?: { amount?: string }[]): string | undefined {
+    if (!list?.length) return undefined;
+    try {
+      return list.reduce((s, x) => s + BigInt(x.amount ?? "0"), 0n).toString();
+    } catch {
+      return undefined;
+    }
+  }
+
   private tokenAddr(t: TokenInfo): string {
     return t.address === "native" ? NATIVE : t.address;
   }
@@ -99,6 +108,7 @@ export class LifiAdapter implements SwapProvider, BridgeProvider {
       priceImpactPct: null,
       feeUsd: this.sumUsd(est.feeCosts),
       gasUsd: this.sumUsd(est.gasCosts),
+      gasCostWei: this.sumWei(est.gasCosts),
       estimatedSeconds: est.executionDuration ?? null,
       route: (data.includedSteps ?? []).map((s) => s.tool ?? "").filter(Boolean),
       expiresAt: Date.now() + 45_000,

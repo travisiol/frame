@@ -9,7 +9,8 @@
  * Content scripts and web pages can never call the API channel.
  */
 import type { WalletEvent } from "@frame/types";
-import { BRAND, ENV, toHexChainId } from "@frame/config";
+import { BRAND, ENV, chainName, isPrimaryChain, toHexChainId } from "@frame/config";
+import { formatTokenAmount } from "@frame/chain";
 import { ChromeStorageStore, MemoryStore } from "@frame/storage";
 import { serializeError } from "@frame/security";
 import { WalletService, isWalletApiMethod, type WalletApi } from "@frame/wallet-core";
@@ -88,7 +89,20 @@ function send(port: chrome.runtime.Port, msg: PortEvent | PortResponse) {
 }
 
 async function maybeNotify(event: WalletEvent) {
-  if (event.type !== "tx" || event.status === "pending" || !chrome.notifications) return;
+  if (!chrome.notifications) return;
+  if (event.type === "funds") {
+    const snap = await service.getSnapshot();
+    if (!snap.settings.notifications) return;
+    const it = event.item;
+    chrome.notifications.create(`funds:${it.id}`, {
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("icons/icon-128.png"),
+      title: `Received ${formatTokenAmount(it.amountRaw, it.decimals)} ${it.symbol}`,
+      message: isPrimaryChain(it.chainId) ? `On ${chainName(it.chainId)} — it is in your portfolio.` : `On ${chainName(it.chainId)}. Open ${BRAND.name} to move it to Robinhood Chain.`,
+    });
+    return;
+  }
+  if (event.type !== "tx" || event.status === "pending") return;
   const snap = await service.getSnapshot();
   if (!snap.settings.notifications) return;
   const item = snap.localActivity.find((a) => a.hash === event.hash);
@@ -218,9 +232,13 @@ chrome.runtime.onConnect.addListener((port) => {
 // ---------------------------------------------------------------------------
 
 chrome.alarms.create("frame:autolock", { periodInMinutes: 1 });
+// Incoming-funds watcher: every 30 s (the MV3 minimum), on every supported chain.
+chrome.alarms.create("frame:funds", { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "frame:autolock") void ready.then(() => service.tick());
+  if (alarm.name === "frame:funds") void ready.then(() => service.pollIncoming()).catch(() => undefined);
 });
+void ready.then(() => service.pollIncoming()).catch(() => undefined);
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {

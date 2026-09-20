@@ -1,40 +1,19 @@
 import { BRAND } from "@frame/config";
+import { LOGO_COLOR, LOGO_PNG_128, LOGO_PNG_64 } from "./logo-data";
+import { cx } from "./components";
 
 /**
- * The FRAME mark: two geometric strokes — a frame corner (┌) and a short
- * bar — that read as an F, a market frame and a portal at once. Built on a
- * 64-unit grid so it stays crisp at 16px.
+ * The FRAME logo — the artwork file from brand-src/, rendered as-is on its
+ * black tile (cropped to the mark by scripts/render-icons.mjs, never redrawn).
+ * Sits flat on dark surfaces; the tile's corners are rounded like an app icon.
  */
-export const LOGO_GEOMETRY = {
-  viewBox: "0 0 64 64",
-  /** Frame corner: vertical + top bar as one path. */
-  corner: "M15 12H49V22H25V52H15V12Z",
-  /** Short middle bar. */
-  bar: "M15 31H41V41H15V31Z",
-} as const;
-
-export function Logo({ size = 32, className, color = "currentColor", title = BRAND.name }: { size?: number; className?: string; color?: string; title?: string }) {
-  return (
-    <svg width={size} height={size} viewBox={LOGO_GEOMETRY.viewBox} className={className} role="img" aria-label={title} shapeRendering="geometricPrecision">
-      <path d={LOGO_GEOMETRY.corner} fill={color} />
-      <path d={LOGO_GEOMETRY.bar} fill={color} />
-    </svg>
-  );
+export function Logo({ size = 32, className, title = BRAND.name, radius = 0.22 }: { size?: number; className?: string; title?: string; color?: string; radius?: number }) {
+  return <img src={LOGO_PNG_128} width={size} height={size} alt={title} draggable={false} className={cx("inline-block shrink-0 select-none", className)} style={{ borderRadius: `${radius * 100}%` }} />;
 }
 
-/** Mark on a rounded dark tile — used for the extension icon, favicons and avatars. */
+/** Same artwork, larger default — kept for callers that used the tiled variant. */
 export function LogoTile({ size = 40, radius = 0.22, className }: { size?: number; radius?: number; className?: string }) {
-  const r = 64 * radius;
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" className={className} role="img" aria-label={BRAND.name}>
-      <rect width="64" height="64" rx={r} fill="#101310" />
-      <rect x="0.5" y="0.5" width="63" height="63" rx={r - 0.5} fill="none" stroke="#252A25" />
-      <g transform="translate(6 6) scale(0.8125)">
-        <path d={LOGO_GEOMETRY.corner} fill="#A8FF60" />
-        <path d={LOGO_GEOMETRY.bar} fill="#A8FF60" />
-      </g>
-    </svg>
-  );
+  return <Logo size={size} radius={radius} className={className} />;
 }
 
 export function Wordmark({ size = 20, className, gap = 10 }: { size?: number; className?: string; gap?: number }) {
@@ -48,8 +27,10 @@ export function Wordmark({ size = 20, className, gap = 10 }: { size?: number; cl
   );
 }
 
-/** Data URI of the mark for EIP-6963 provider discovery (icon must be a data URI). */
+/** Data URI of the logo for EIP-6963 provider discovery (icons must be data URIs). */
 export function logoDataUri(): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#101310"/><g transform="translate(6 6) scale(0.8125)"><path d="${LOGO_GEOMETRY.corner}" fill="#A8FF60"/><path d="${LOGO_GEOMETRY.bar}" fill="#A8FF60"/></g></svg>`;
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  return LOGO_PNG_64;
 }
+
+/** Dominant colour of the artwork, for glows around the logo. */
+export const LOGO_ACCENT = LOGO_COLOR;
