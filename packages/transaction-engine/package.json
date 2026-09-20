@@ -1,0 +1,16 @@
+{
+  "name": "@frame/transaction-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@frame/chain": "*",
+    "@frame/config": "*",
+    "@frame/security": "*",
+    "@frame/token-registry": "*",
+    "@frame/types": "*"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@frame/wallet-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@frame/chain": "*",
+    "@frame/config": "*",
+    "@frame/markets": "*",
+    "@frame/security": "*",
+    "@frame/token-registry": "*",
+    "@frame/transaction-engine": "*",
+    "@frame/types": "*",
+    "@frame/ui": "*",
+    "@frame/wallet-core": "*"
+  }
+}

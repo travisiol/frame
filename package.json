@@ -1,0 +1,55 @@
+{
+  "name": "frame",
+  "private": true,
+  "version": "0.1.0",
+  "description": "FRAME — the wallet for onchain markets. Independent self-custodial wallet built for Robinhood Chain.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @frame/demo",
+    "dev:demo": "npm run dev -w @frame/demo",
+    "dev:landing": "npm run dev -w @frame/landing",
+    "build": "npm run build:extension && npm run build:web",
+    "build:extension": "npm run build -w @frame/extension",
+    "build:demo": "npm run build -w @frame/demo",
+    "build:landing": "npm run build -w @frame/landing",
+    "build:web": "node scripts/build-web.mjs",
+    "icons": "node scripts/render-icons.mjs",
+    "registry:discover": "node packages/token-registry/scripts/discover-pairs.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "node scripts/lint-secrets.mjs",
+    "audit:deps": "npm audit --audit-level=moderate",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "dependencies": {
+    "@scure/bip39": "1.6.0",
+    "@tanstack/react-query": "5.103.1",
+    "framer-motion": "13.4.0",
+    "qrcode": "1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "viem": "2.56.8",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/chrome": "0.3.0",
+    "@types/node": "26.6.2",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}

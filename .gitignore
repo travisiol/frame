@@ -1,0 +1,32 @@
+# dependencies (no leading slash: covers every workspace package)
+node_modules/
+
+# builds
+dist/
+build/
+.vite/
+*.tsbuildinfo
+coverage/
+
+# extension packaging
+*.zip
+*.crx
+*.pem
+
+# environment — keep only the example
+.env
+.env.*
+!.env.example
+
+# captures & scratch
+/captures/
+*.log
+.DS_Store
+Thumbs.db
+
+# editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+.vercel

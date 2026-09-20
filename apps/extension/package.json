@@ -1,0 +1,24 @@
+{
+  "name": "@frame/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/build.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@frame/chain": "*",
+    "@frame/config": "*",
+    "@frame/markets": "*",
+    "@frame/security": "*",
+    "@frame/storage": "*",
+    "@frame/token-registry": "*",
+    "@frame/transaction-engine": "*",
+    "@frame/types": "*",
+    "@frame/ui": "*",
+    "@frame/wallet-app": "*",
+    "@frame/wallet-core": "*"
+  }
+}

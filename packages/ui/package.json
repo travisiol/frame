@@ -1,0 +1,17 @@
+{
+  "name": "@frame/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "dependencies": {
+    "@frame/chain": "*",
+    "@frame/config": "*",
+    "@frame/types": "*",
+    "framer-motion": "*",
+    "react": "*"
+  }
+}

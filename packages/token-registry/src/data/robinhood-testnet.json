@@ -1,0 +1,9 @@
+{
+  "chainId": 46630,
+  "updatedAt": "2026-09-19",
+  "method": "No verified Stock Token deployments are known on Robinhood Chain Testnet yet. Tokens imported manually on testnet are shown as UNVERIFIED. Add entries here only after reading symbol()/name()/decimals() from the contract and confirming its issuer.",
+  "tokens": [],
+  "knownSpenders": [
+    { "address": "0xca11bde05977b3631167028862be2a173976ca11", "label": "Multicall3" }
+  ]
+}
