@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BRAND } from "@frame/config";
-import { assessPassword, looksLikeMnemonic, looksLikePrivateKey } from "@frame/security";
+import { assessPassword, looksLikePrivateKey } from "@frame/security";
 import { isValidAddress } from "@frame/chain";
+import type { MnemonicPreview } from "@frame/types";
 import { humanizeError } from "@frame/transaction-engine";
 import { Button, Confetti, FRAME_FLOATING_ITEMS, Field, FloatingField, Icon, Logo, PasswordField, cx, useCopy } from "@frame/ui";
 import { useApp, useBackend } from "../context";
 import { useAppStore, useSnapshot } from "../state/store";
 import { Disclaimer } from "../components/common";
+import { PhraseInput } from "../components/PhraseInput";
 
 type Step =
   | { kind: "welcome" }
@@ -312,6 +314,7 @@ function ImportWallet({ password, onBack, onDone }: { password: string; onBack: 
   const backend = useBackend();
   const [tab, setTab] = useState<"phrase" | "key">("phrase");
   const [value, setValue] = useState("");
+  const [preview, setPreview] = useState<MnemonicPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const setRevealing = useAppStore((s) => s.setRevealingSecret);
@@ -320,7 +323,7 @@ function ImportWallet({ password, onBack, onDone }: { password: string; onBack: 
     return () => setRevealing(false);
   }, [setRevealing]);
 
-  const valid = tab === "phrase" ? looksLikeMnemonic(value.trim().toLowerCase().split(/\s+/).join(" ")) : looksLikePrivateKey(value);
+  const valid = tab === "phrase" ? preview?.valid === true : looksLikePrivateKey(value);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -354,6 +357,7 @@ function ImportWallet({ password, onBack, onDone }: { password: string; onBack: 
             onClick={() => {
               setTab(t);
               setValue("");
+              setPreview(null);
               setError(null);
             }}
           >
@@ -363,7 +367,7 @@ function ImportWallet({ password, onBack, onDone }: { password: string; onBack: 
       </div>
       <div className="mt-4">
         {tab === "phrase" ? (
-          <Field multiline rows={4} label="12 or 24 words" placeholder="word1 word2 word3 …" value={value} onChange={(e) => setValue(e.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="none" error={error} />
+          <PhraseInput value={value} onChange={setValue} onPreview={setPreview} error={error} autoFocus />
         ) : (
           <PasswordField label="Private key" placeholder="0x…" value={value} onChange={(e) => setValue(e.target.value)} error={error} />
         )}

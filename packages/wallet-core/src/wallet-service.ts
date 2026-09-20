@@ -1,7 +1,7 @@
 import { readTokenBalances } from "@frame/chain";
 import { BRIDGE_SOURCE_CHAIN_IDS } from "@frame/config";
 import { activityFromIncoming } from "@frame/transaction-engine";
-import type { IncomingFunds } from "@frame/types";
+import type { IncomingFunds, MnemonicPreview } from "@frame/types";
 import { formatUnits, parseUnits, type PublicClient } from "viem";
 import type {
   Account,
@@ -380,6 +380,8 @@ export class WalletService implements WalletApi {
       customTokens: this.customTokens,
       localActivity: this.localTx.map(activityFromRecord),
       incoming: this.incoming,
+      // Distinct phrase indices among HD accounts — available locked or not, unlike the in-memory keyring.
+      phraseCount: new Set(this.accounts.filter((a) => a.kind === "hd").map((a) => a.phrase ?? 0)).size,
     };
   }
 
@@ -388,7 +390,7 @@ export class WalletService implements WalletApi {
   // ---------------------------------------------------------------------------
 
   private async createVault(keyring: Keyring, password: string): Promise<void> {
-    if (await this.opts.persistent.get(KEYS.vault)) throw new Error("A wallet already exists on this device.");
+    if (await this.opts.persistent.get(KEYS.vault)) throw new Error("This device already has a wallet. Unlock it, then add this recovery phrase from Settings → Accounts → Import.");
     if (typeof password !== "string" || password.length < 8) throw new VaultError("WEAK_PASSWORD", "Password must be at least 8 characters.");
     const { blob, keyBits } = await encryptVault(keyring.toPayload(), password, { iterations: this.kdfIterations });
     await this.persist(KEYS.vault, blob);
@@ -484,11 +486,12 @@ export class WalletService implements WalletApi {
   // WalletApi: accounts
   // ---------------------------------------------------------------------------
 
-  async createAccount(p: { name?: string } = {}): Promise<Account> {
+  async createAccount(p: { name?: string; phrase?: number } = {}): Promise<Account> {
     const keyring = await this.ensureUnlocked();
-    const { index, address } = keyring.addHdAccount();
+    const phrase = p.phrase ?? 0;
+    const { index, address } = keyring.addHdAccount(phrase);
     await this.saveVaultFromKeyring();
-    const account = await this.addAccount({ name: p.name?.trim() || this.nextAccountName(), address, kind: "hd", hdIndex: index });
+    const account = await this.addAccount({ name: p.name?.trim() || this.nextAccountName(), address, kind: "hd", hdIndex: index, ...(phrase > 0 ? { phrase } : {}) });
     this.emit({ type: "state" });
     return account;
   }
@@ -498,6 +501,35 @@ export class WalletService implements WalletApi {
     const address = keyring.importPrivateKey(p.privateKey);
     await this.saveVaultFromKeyring();
     const account = await this.addAccount({ name: p.name?.trim() || this.nextAccountName(), address, kind: "imported" });
+    this.emit({ type: "state" });
+    return account;
+  }
+
+  /**
+   * Reads a phrase without touching the vault: how many words, which ones
+   * are not real BIP-39 words (with position), whether the checksum holds,
+   * and the address it would control. Works locked or unlocked — nothing is
+   * derived from the wallet's own secrets, only from the typed text.
+   */
+  async previewMnemonic(p: { mnemonic: string }): Promise<MnemonicPreview> {
+    await this.init();
+    return Keyring.previewMnemonic(p.mnemonic, (address) => !!this.accountByAddress(address));
+  }
+
+  /**
+   * Adds another recovery phrase to this wallet's vault — the case where
+   * someone has an older phrase and wants both under one password. Its first
+   * account joins the account list; the phrase itself never leaves the vault.
+   */
+  async importPhrase(p: { mnemonic: string; name?: string }): Promise<Account> {
+    const keyring = await this.ensureUnlocked();
+    // Check before mutating the in-memory keyring: a rejected import must never leave a half-added phrase behind.
+    const preview = Keyring.previewMnemonic(p.mnemonic);
+    if (!preview.valid || !preview.address) throw new Error("Invalid recovery phrase.");
+    if (this.accountByAddress(preview.address)) throw new Error("This recovery phrase is already in the wallet.");
+    const { phrase, address } = keyring.importMnemonic(p.mnemonic);
+    await this.saveVaultFromKeyring();
+    const account = await this.addAccount({ name: p.name?.trim() || this.nextAccountName(), address, kind: "hd", hdIndex: 0, ...(phrase > 0 ? { phrase } : {}) });
     this.emit({ type: "state" });
     return account;
   }
@@ -943,7 +975,7 @@ export class WalletService implements WalletApi {
   // WalletApi: security
   // ---------------------------------------------------------------------------
 
-  async exportRecovery(p: { password: string; accountId?: string }): Promise<{ mnemonic?: string; privateKey?: string }> {
+  async exportRecovery(p: { password: string; accountId?: string; phrase?: number }): Promise<{ mnemonic?: string; privateKey?: string }> {
     await this.init();
     const vault = await this.opts.persistent.get<EncryptedVaultBlob>(KEYS.vault);
     if (!isEncryptedVaultBlob(vault)) throw new Error("No vault on this device.");
@@ -958,6 +990,7 @@ export class WalletService implements WalletApi {
         if (account.kind === "watch") throw new Error("Watch-only accounts have no key to export.");
         return { privateKey: keyring.exportPrivateKey(account.address) };
       }
+      if (p.phrase !== undefined) return { mnemonic: keyring.exportMnemonic(p.phrase) };
       return keyring.hasMnemonic ? { mnemonic: keyring.exportMnemonic() } : { privateKey: keyring.exportPrivateKey(this.accounts[0]!.address) };
     } finally {
       keyring.lock();

@@ -266,7 +266,7 @@ function ExportRecovery() {
   const backend = useBackend();
   const snap = useSnapshot();
   const [password, setPassword] = useState("");
-  const [accountId, setAccountId] = useState<string>("");
+  const [accountId, setAccountId] = useState<string>("phrase:0");
   const [secret, setSecret] = useState<{ mnemonic?: string; privateKey?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -285,7 +285,8 @@ function ExportRecovery() {
     setBusy(true);
     setError(null);
     try {
-      const out = await backend.exportRecovery({ password, accountId: accountId || undefined });
+      const phrase = accountId.startsWith("phrase:") ? Number(accountId.slice(7)) : undefined;
+      const out = await backend.exportRecovery({ password, accountId: phrase === undefined ? accountId || undefined : undefined, phrase });
       setSecret(out);
       setPassword("");
       if (!snap?.backupConfirmed && out.mnemonic) await backend.confirmBackup();
@@ -308,7 +309,23 @@ function ExportRecovery() {
             <div>
               <div className="label mb-2">What to export</div>
               <div className="card divide-y divide-line">
-                <ListRow title="Recovery phrase" subtitle="Restores every derived account" trailing={accountId === "" ? <Icon.Check size={16} className="text-accent" /> : undefined} onClick={() => setAccountId("")} />
+                {Array.from({ length: Math.max(1, snap?.phraseCount ?? 1) }, (_, i) => {
+                  const key = `phrase:${i}`;
+                  const names = signingAccounts
+                    .filter((a) => a.kind === "hd" && (a.phrase ?? 0) === i)
+                    .map((a) => a.name)
+                    .join(", ");
+                  const single = (snap?.phraseCount ?? 1) <= 1;
+                  return (
+                    <ListRow
+                      key={key}
+                      title={single ? "Recovery phrase" : `Recovery phrase ${i + 1}`}
+                      subtitle={names ? `Restores ${names}` : "Restores every derived account"}
+                      trailing={accountId === key ? <Icon.Check size={16} className="text-accent" /> : undefined}
+                      onClick={() => setAccountId(key)}
+                    />
+                  );
+                })}
                 {signingAccounts.map((a) => (
                   <ListRow key={a.id} title={`Private key · ${a.name}`} subtitle={<span className="mono">{shortAddress(a.address, 6)}</span>} trailing={accountId === a.id ? <Icon.Check size={16} className="text-accent" /> : undefined} onClick={() => setAccountId(a.id)} />
                 ))}

@@ -5,6 +5,7 @@ import type {
   AddressBookEntry,
   Allowance,
   IncomingFunds,
+  MnemonicPreview,
   NetworkMode,
   Settings,
   TokenInfo,
@@ -34,6 +35,10 @@ export interface WalletApi {
   confirmBackup(): Promise<void>;
   importWallet(p: { password: string; mnemonic?: string; privateKey?: string }): Promise<{ address: Address }>;
   addWatchAccount(p: { address: Address; name?: string }): Promise<Account>;
+  /** Reads a typed phrase without storing anything: word count, invalid words, the address it controls. */
+  previewMnemonic(p: { mnemonic: string }): Promise<MnemonicPreview>;
+  /** Adds another recovery phrase to the existing (unlocked) wallet, with its first account. */
+  importPhrase(p: { mnemonic: string; name?: string }): Promise<Account>;
 
   // --- lock ----------------------------------------------------------------
   unlock(p: { password: string }): Promise<void>;
@@ -42,7 +47,7 @@ export interface WalletApi {
   touch(): Promise<void>;
 
   // --- accounts ------------------------------------------------------------
-  createAccount(p: { name?: string }): Promise<Account>;
+  createAccount(p: { name?: string; phrase?: number }): Promise<Account>;
   importAccount(p: { privateKey: string; name?: string }): Promise<Account>;
   renameAccount(p: { id: string; name: string }): Promise<void>;
   removeAccount(p: { id: string }): Promise<void>;
@@ -78,7 +83,7 @@ export interface WalletApi {
   pollIncoming(): Promise<IncomingFunds[]>;
 
   // --- security ------------------------------------------------------------
-  exportRecovery(p: { password: string; accountId?: string }): Promise<{ mnemonic?: string; privateKey?: string }>;
+  exportRecovery(p: { password: string; accountId?: string; phrase?: number }): Promise<{ mnemonic?: string; privateKey?: string }>;
   changePassword(p: { current: string; next: string }): Promise<void>;
 
   // --- lists ---------------------------------------------------------------
@@ -102,6 +107,8 @@ export const WALLET_API_METHODS: readonly WalletApiMethod[] = [
   "confirmBackup",
   "importWallet",
   "addWatchAccount",
+  "previewMnemonic",
+  "importPhrase",
   "unlock",
   "lock",
   "touch",

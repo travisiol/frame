@@ -111,8 +111,11 @@ export function ListRow({
   disabled?: boolean;
 }) {
   const Comp = onClick ? "button" : "div";
+  // A <button> with no type defaults to type="submit" — inside a <form> (e.g. Export recovery's
+  // phrase/key picker), clicking a row to select it would also submit the form prematurely.
+  const typeProp = onClick ? { type: "button" as const } : {};
   return (
-    <Comp onClick={onClick} disabled={disabled} className={cx("row", onClick && "row-hover", disabled && "opacity-50", className)}>
+    <Comp {...typeProp} onClick={onClick} disabled={disabled} className={cx("row", onClick && "row-hover", disabled && "opacity-50", className)}>
       {leading}
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px] font-medium text-ink">{title}</div>

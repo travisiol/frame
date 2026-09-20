@@ -13,9 +13,19 @@ const SECRET_KEY = /mnemonic|seed|phrase|private|secret|password|passphrase|vaul
 const PRIVATE_KEY_LIKE = /\b(?:0x)?[0-9a-fA-F]{64}\b/g;
 const REDACTED = "[REDACTED]";
 
+/** Lowercase, accents stripped, anything that is not a letter becomes a space (numbering, commas, line breaks). */
+export function normalizeMnemonicText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .trim();
+}
+
 /** Heuristic: 12/15/18/21/24 lowercase words of 3–8 letters → treat as a recovery phrase. */
 export function looksLikeMnemonic(value: string): boolean {
-  const words = value.trim().split(/\s+/);
+  const words = normalizeMnemonicText(value).split(" ").filter(Boolean);
   if (![12, 15, 18, 21, 24].includes(words.length)) return false;
   return words.every((w) => /^[a-z]{3,8}$/.test(w));
 }

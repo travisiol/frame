@@ -62,7 +62,7 @@ describe("WalletService — vault lifecycle", () => {
 
   it("refuses a second vault and weak passwords", async () => {
     const { service } = await created();
-    await expect(service.createWallet({ password: "another" })).rejects.toThrow(/already exists/);
+    await expect(service.createWallet({ password: "another" })).rejects.toThrow(/already has a wallet/);
     const fresh = makeService();
     await expect(fresh.service.createWallet({ password: "short" })).rejects.toMatchObject({ code: "WEAK_PASSWORD" });
   });

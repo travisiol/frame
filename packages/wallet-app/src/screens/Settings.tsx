@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { Address, TokenInfo } from "@frame/types";
+import type { Address, MnemonicPreview, TokenInfo } from "@frame/types";
 import { BRAND, ROBINHOOD_MAINNET_ID, ROBINHOOD_TESTNET_ID, chainName, getChainConfig } from "@frame/config";
 import { isValidAddress, probeRpc, readTokenMetadata, shortAddress } from "@frame/chain";
 import { findToken, makeUnknownToken } from "@frame/token-registry";
@@ -10,6 +10,7 @@ import { useSnapshot } from "../state/store";
 import { useChainClient, useChainId, useSelectedAccount } from "../data/hooks";
 import { goBack, useNavigate, useRoute } from "../nav";
 import { Disclaimer } from "../components/common";
+import { PhraseInput } from "../components/PhraseInput";
 
 export function SettingsScreen() {
   const { path } = useRoute();
@@ -92,16 +93,23 @@ function Accounts() {
   const [name, setName] = useState("");
   const [secret, setSecret] = useState("");
   const [address, setAddress] = useState("");
+  const [mode, setMode] = useState<"phrase" | "key">("phrase");
+  const [preview, setPreview] = useState<MnemonicPreview | null>(null);
+  const [phraseIndex, setPhraseIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
   const [remove, setRemove] = useState<string | null>(null);
+  const phraseCount = Math.max(1, snap?.phraseCount ?? 1);
 
   const close = () => {
     setSheet(null);
     setName("");
     setSecret("");
     setAddress("");
+    setMode("phrase");
+    setPreview(null);
+    setPhraseIndex(0);
     setError(null);
   };
 
@@ -110,10 +118,12 @@ function Accounts() {
     setBusy(true);
     setError(null);
     try {
-      if (sheet === "create") await backend.createAccount({ name });
-      else if (sheet === "import") await backend.importAccount({ privateKey: secret, name });
-      else if (sheet === "watch") await backend.addWatchAccount({ address: address.trim() as Address, name });
-      toast.push({ title: sheet === "watch" ? "Watching address" : "Account added", tone: "success" });
+      if (sheet === "create") await backend.createAccount({ name, phrase: phraseIndex });
+      else if (sheet === "import") {
+        if (mode === "phrase") await backend.importPhrase({ mnemonic: secret, name });
+        else await backend.importAccount({ privateKey: secret, name });
+      } else if (sheet === "watch") await backend.addWatchAccount({ address: address.trim() as Address, name });
+      toast.push({ title: sheet === "watch" ? "Watching address" : mode === "phrase" && sheet === "import" ? "Recovery phrase added" : "Account added", tone: "success" });
       close();
     } catch (err) {
       setError(humanizeError(err).technical);
@@ -135,6 +145,7 @@ function Accounts() {
                   <span className="truncate">{a.name}</span>
                   {a.kind === "watch" && <Pill tone="muted">Watch only</Pill>}
                   {a.kind === "imported" && <Pill tone="muted">Imported</Pill>}
+                  {a.kind === "hd" && (a.phrase ?? 0) > 0 && <Pill tone="muted">Phrase {(a.phrase ?? 0) + 1}</Pill>}
                   {a.id === snap?.selectedAccountId && <Pill tone="accent">Active</Pill>}
                 </div>
                 <div className="mono mt-0.5 text-[11px] text-ink-2">{shortAddress(a.address, 8)}</div>
@@ -166,15 +177,65 @@ function Accounts() {
         </Button>
       </div>
 
-      <Sheet open={sheet !== null} onClose={close} title={sheet === "create" ? "Create account" : sheet === "import" ? "Import account" : "Watch address"}>
+      <Sheet open={sheet !== null} onClose={close} title={sheet === "create" ? "Create account" : sheet === "import" ? "Import" : "Watch address"}>
         <form onSubmit={submit} className="space-y-4 pt-1">
-          {sheet === "create" && <p className="text-[12px] text-ink-2">A new account derived from your recovery phrase. It is restored automatically with the phrase.</p>}
-          {sheet === "import" && <PasswordField label="Private key" placeholder="0x…" value={secret} onChange={(e) => setSecret(e.target.value)} autoFocus />}
+          {sheet === "create" && (
+            <div className="space-y-3">
+              <p className="text-[12px] text-ink-2">A new account derived from your recovery phrase. It is restored automatically with the phrase.</p>
+              {phraseCount > 1 && (
+                <div>
+                  <div className="label mb-2">Derive from</div>
+                  <div className="inline-flex rounded-[12px] border border-line bg-surface p-0.5">
+                    {Array.from({ length: phraseCount }, (_, i) => (
+                      <button key={i} type="button" className={cx("h-9 rounded-[10px] px-4 text-[12px] font-semibold transition-colors", phraseIndex === i ? "bg-card-2 text-ink" : "text-ink-2")} onClick={() => setPhraseIndex(i)}>
+                        Phrase {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {sheet === "import" && (
+            <div className="space-y-4">
+              <div className="inline-flex rounded-[12px] border border-line bg-surface p-0.5">
+                {(["phrase", "key"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={cx("h-9 rounded-[10px] px-4 text-[12px] font-semibold transition-colors", mode === t ? "bg-card-2 text-ink" : "text-ink-2")}
+                    onClick={() => {
+                      setMode(t);
+                      setSecret("");
+                      setPreview(null);
+                      setError(null);
+                    }}
+                  >
+                    {t === "phrase" ? "Recovery phrase" : "Private key"}
+                  </button>
+                ))}
+              </div>
+              {mode === "phrase" ? (
+                <>
+                  <p className="text-[12px] leading-relaxed text-ink-2">Another wallet's recovery phrase. Its accounts join this wallet under the same password; the phrase stays only on this device.</p>
+                  <PhraseInput value={secret} onChange={setSecret} onPreview={setPreview} autoFocus />
+                </>
+              ) : (
+                <PasswordField label="Private key" placeholder="0x…" value={secret} onChange={(e) => setSecret(e.target.value)} autoFocus />
+              )}
+            </div>
+          )}
           {sheet === "watch" && <Field label="Address" placeholder="0x…" value={address} onChange={(e) => setAddress(e.target.value)} autoFocus autoComplete="off" spellCheck={false} />}
           <Field label="Name (optional)" placeholder={sheet === "watch" ? "Treasury" : "Trading"} value={name} onChange={(e) => setName(e.target.value)} />
           {error && <div className="text-[12px] text-loss">{error}</div>}
-          <Button type="submit" variant="primary" full loading={busy} disabled={(sheet === "import" && !secret) || (sheet === "watch" && !isValidAddress(address.trim()))}>
-            {sheet === "create" ? "CREATE ACCOUNT" : sheet === "import" ? "IMPORT ACCOUNT" : "WATCH ADDRESS"}
+          <Button
+            type="submit"
+            variant="primary"
+            full
+            loading={busy}
+            disabled={(sheet === "import" && (mode === "phrase" ? preview?.valid !== true || preview.alreadyInWallet : !secret)) || (sheet === "watch" && !isValidAddress(address.trim()))}
+          >
+            {sheet === "create" ? "CREATE ACCOUNT" : sheet === "import" ? (mode === "phrase" ? "IMPORT RECOVERY PHRASE" : "IMPORT ACCOUNT") : "WATCH ADDRESS"}
           </Button>
         </form>
       </Sheet>

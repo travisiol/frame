@@ -51,6 +51,8 @@ export interface VaultPayload {
   /** Address indices derived from the mnemonic. */
   hdIndices: number[];
   imported: ImportedKeyEntry[];
+  /** Additional recovery phrases imported later, each with its own derived indices. */
+  phrases?: { mnemonic: string; hdIndices: number[] }[];
 }
 
 export type VaultErrorCode = "INVALID_PASSWORD" | "CORRUPT_VAULT" | "UNSUPPORTED_VERSION" | "WEAK_PASSWORD";
@@ -112,6 +114,9 @@ function aad(version: number, kdf: VaultKdfParams): Uint8Array<ArrayBuffer> {
 function validatePayload(payload: VaultPayload): void {
   if (payload.version !== VAULT_VERSION) throw new VaultError("UNSUPPORTED_VERSION");
   if (!Array.isArray(payload.hdIndices) || !Array.isArray(payload.imported)) throw new VaultError("CORRUPT_VAULT");
+  if (payload.phrases !== undefined && (!Array.isArray(payload.phrases) || payload.phrases.some((p) => typeof p?.mnemonic !== "string" || !Array.isArray(p.hdIndices)))) {
+    throw new VaultError("CORRUPT_VAULT");
+  }
 }
 
 /** Encrypts a payload with an already-derived key, reusing the KDF params of an existing blob (fresh IV every time). */

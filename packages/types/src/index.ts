@@ -18,6 +18,8 @@ export interface Account {
   kind: AccountKind;
   /** BIP-44 address index for HD accounts (m/44'/60'/0'/0/i). */
   hdIndex?: number;
+  /** Which recovery phrase derives an HD account (omitted = the wallet's primary phrase). */
+  phrase?: number;
   createdAt: number;
 }
 
@@ -458,6 +460,20 @@ export interface IncomingFunds {
   detectedAt: number;
 }
 
+/** What the wallet can tell about a typed recovery phrase before anything is stored. */
+export interface MnemonicPreview {
+  wordCount: number;
+  valid: boolean;
+  /** First derived address (m/44'/60'/0'/0/0) when the phrase is valid. */
+  address?: Address;
+  /** Words that are not in the BIP-39 English list, with their 1-based position. */
+  invalidWords: { position: number; word: string }[];
+  /** Every word exists but the checksum fails: a word is wrong or out of order. */
+  checksumFailed: boolean;
+  /** The phrase (or its first account) is already in this wallet. */
+  alreadyInWallet: boolean;
+}
+
 export interface WalletSnapshot {
   version: string;
   mode: AppMode;
@@ -478,6 +494,8 @@ export interface WalletSnapshot {
   localActivity: ActivityItem[];
   /** Funds detected arriving on any supported chain, newest first. */
   incoming: IncomingFunds[];
+  /** Recovery phrases in the vault (0 for a wallet made of imported keys only). */
+  phraseCount: number;
 }
 
 export type WalletEvent =
