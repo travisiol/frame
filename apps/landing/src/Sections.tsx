@@ -66,7 +66,7 @@ export function Hero() {
         <FloatingField items={FRAME_FLOATING_ITEMS} count={34} seed={17} minSize={30} maxSize={132} avoid={[{ x: 22, y: 22, w: 56, h: 60 }]} />
         <div className="hero-vignette" />
         <div className="hero-content flex min-h-[calc(100svh_-_32px)] flex-col items-center justify-center px-6 py-28 text-center">
-          <motion.img src="/icons/icon-512.png" alt="" width={144} height={144} draggable={false} className="hero-logo" initial={{ opacity: 0, y: 16, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.9, ease }} />
+          <motion.img src="/icons/icon-512.png" alt="" width={168} height={168} draggable={false} className="hero-logo" initial={{ opacity: 0, y: 16, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.9, ease }} />
           <motion.p className="eyebrow mt-7" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease, delay: 0.1 }}>
             Built for Robinhood Chain
           </motion.p>

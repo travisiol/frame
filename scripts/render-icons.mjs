@@ -6,8 +6,10 @@
  *
  * The artwork is only ever cropped and scaled — never redrawn. Icons are
  * cropped to the mark's bounds (plus a margin) so the letter stays legible at
- * 16 px; "full" renders keep the original framing. When brand-src/banner.png
- * exists, the Open Graph card is a centre crop of it.
+ * 16 px; "full" renders keep the original framing. A transparent artwork stays
+ * transparent (the mark floats on whatever is behind it); an opaque one keeps
+ * its own background. When brand-src/banner.png exists, the Open Graph card is
+ * a centre crop of it.
  *
  * Zero dependencies: a headless Chrome canvas does the decoding and resampling
  * (stepwise, high quality), exactly like the browser will display it.
@@ -33,7 +35,7 @@ const asDataUri = (file) => {
   return `data:${mime};base64,${readFileSync(file).toString("base64")}`;
 };
 
-/** [dir, sizes] — icons are cropped to the mark on its black tile. */
+/** [dir, sizes] — icons are cropped to the mark. */
 const OUTPUTS = [
   ["apps/extension/public/icons", [16, 32, 48, 64, 128, 256]],
   ["apps/landing/public/icons", [16, 32, 64, 180, 192, 512]],
@@ -46,14 +48,16 @@ const PAGE_SETUP = `(() => {
   const c = document.createElement("canvas"); c.width = W; c.height = H;
   const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
   const d = g.getImageData(0, 0, W, H).data;
-  // Bounds of the mark: anything clearly brighter than the black background.
+  let hasAlpha = false;
+  for (let i = 3; i < d.length; i += 4) if (d[i] < 250) { hasAlpha = true; break; }
+  // Bounds of the mark: opaque pixels when the file has transparency, otherwise anything brighter than black.
   let x0 = W, y0 = H, x1 = 0, y1 = 0;
   const hist = new Map();
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * W + x) * 4, r = d[i], gg = d[i + 1], bb = d[i + 2], a = d[i + 3];
-    if (a < 32) continue;
-    const lum = 0.2126 * r + 0.7152 * gg + 0.0722 * bb;
-    if (lum > 22) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const on = hasAlpha ? a > 32 : 0.2126 * r + 0.7152 * gg + 0.0722 * bb > 22;
+    if (!on) continue;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     const mx = Math.max(r, gg, bb), mn = Math.min(r, gg, bb);
     const sat = mx === 0 ? 0 : (mx - mn) / mx;
     if (sat > 0.6 && mx > 120) { const k = ((r >> 4) << 8) | ((gg >> 4) << 4) | (bb >> 4); hist.set(k, (hist.get(k) ?? 0) + 1); }
@@ -64,11 +68,12 @@ const PAGE_SETUP = `(() => {
   const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
   const side = Math.round(Math.max(bw, bh) * 1.28); // 14 % margin around the mark
   const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  window.__art = { W, H, bounds: { x0, y0, x1, y1 }, crop: { x: Math.round(cx - side / 2), y: Math.round(cy - side / 2), side }, color: hex };
-  // Stepwise high-quality resample of a source rectangle into a w×h PNG on black.
-  window.__resample = (source, sx, sy, sw, sh, w, h) => {
+  window.__art = { W, H, hasAlpha, bounds: { x0, y0, x1, y1 }, crop: { x: Math.round(cx - side / 2), y: Math.round(cy - side / 2), side }, color: hex };
+  // Stepwise high-quality resample of a source rectangle into a w×h PNG (transparent unless \`fill\`).
+  window.__resample = (source, sx, sy, sw, sh, w, h, fill) => {
     let cur = document.createElement("canvas"); cur.width = sw; cur.height = sh;
-    const ctx = cur.getContext("2d"); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, sw, sh);
+    const ctx = cur.getContext("2d");
+    if (fill) { ctx.fillStyle = fill; ctx.fillRect(0, 0, sw, sh); }
     ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
     while (cur.width / 2 >= w * 2 && cur.height / 2 >= h * 2) {
       const next = document.createElement("canvas"); next.width = Math.round(cur.width / 2); next.height = Math.round(cur.height / 2);
@@ -76,13 +81,15 @@ const PAGE_SETUP = `(() => {
       cur = next;
     }
     const out = document.createElement("canvas"); out.width = w; out.height = h;
-    const octx = out.getContext("2d"); octx.fillStyle = "#000"; octx.fillRect(0, 0, w, h);
+    const octx = out.getContext("2d");
+    if (fill) { octx.fillStyle = fill; octx.fillRect(0, 0, w, h); }
     octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = "high"; octx.drawImage(cur, 0, 0, w, h);
     return out.toDataURL("image/png");
   };
   window.__render = (size, framing) => {
     const icon = framing === "icon";
-    return window.__resample(img, icon ? window.__art.crop.x : 0, icon ? window.__art.crop.y : 0, icon ? window.__art.crop.side : W, icon ? window.__art.crop.side : H, size, size);
+    const fill = window.__art.hasAlpha ? null : "#000";
+    return window.__resample(img, icon ? window.__art.crop.x : 0, icon ? window.__art.crop.y : 0, icon ? window.__art.crop.side : W, icon ? window.__art.crop.side : H, size, size, fill);
   };
   // Open Graph card, 1200×630: the banner's centre when there is one, else the mark centred on black.
   window.__og = (bannerUri) => new Promise((resolve) => {
@@ -92,7 +99,7 @@ const PAGE_SETUP = `(() => {
         const bw = bn.naturalWidth, bh = bn.naturalHeight;
         const cropW = Math.min(bw, Math.round(bh * (1200 / 630)));
         const cropH = Math.min(bh, Math.round(cropW * (630 / 1200)));
-        resolve(window.__resample(bn, Math.round((bw - cropW) / 2), Math.round((bh - cropH) / 2), cropW, cropH, 1200, 630));
+        resolve(window.__resample(bn, Math.round((bw - cropW) / 2), Math.round((bh - cropH) / 2), cropW, cropH, 1200, 630, "#000"));
       };
       bn.src = bannerUri;
       return;
@@ -110,11 +117,11 @@ const b = launch({ out: resolve(root, "captures/.icons"), width: 1400, height: 1
 let exitCode = 0;
 try {
   const page = await b.open("about:blank");
-  await b.evaluate(page, `(() => { document.body.style.margin = "0"; document.body.style.background = "#000"; window.__img = new Image(); window.__img.src = ${JSON.stringify(asDataUri(src))}; return true; })()`);
+  await b.evaluate(page, `(() => { document.body.style.margin = "0"; window.__img = new Image(); window.__img.src = ${JSON.stringify(asDataUri(src))}; return true; })()`);
   await b.waitFor(page, `window.__img.complete && window.__img.naturalWidth > 0`, { label: "artwork decoded" });
   await b.evaluate(page, PAGE_SETUP);
   const art = await b.evaluate(page, `window.__art`);
-  console.log(`artwork ${art.W}×${art.H} (${src.replace(root, ".")}), mark bounds ${art.bounds.x0},${art.bounds.y0} → ${art.bounds.x1},${art.bounds.y1}, icon crop ${art.crop.side}px, dominant colour ${art.color}`);
+  console.log(`artwork ${art.W}×${art.H} (${src.replace(root, ".")}), ${art.hasAlpha ? "transparent" : "opaque"}, mark bounds ${art.bounds.x0},${art.bounds.y0} → ${art.bounds.x1},${art.bounds.y1}, icon crop ${art.crop.side}px, dominant colour ${art.color}`);
 
   const write = (file, dataUrl) => {
     mkdirSync(dirname(file), { recursive: true });
@@ -139,12 +146,14 @@ try {
   writeFileSync(
     resolve(root, "packages/ui/src/logo-data.ts"),
     `// Generated by scripts/render-icons.mjs from brand-src/ — do not edit by hand.
-/** The FRAME logo, cropped to the mark on its black tile, 128 px. */
+/** The FRAME logo, cropped to the mark, 128 px${art.hasAlpha ? ", transparent background" : ""}. */
 export const LOGO_PNG_128 = ${JSON.stringify(uri128)};
 /** 64 px variant for places that must stay small (EIP-6963 provider icon). */
 export const LOGO_PNG_64 = ${JSON.stringify(uri64)};
 /** Dominant colour of the artwork, sampled from its pixels. */
 export const LOGO_COLOR = ${JSON.stringify(art.color ?? "#A8FF60")};
+/** Whether the artwork has a transparent background (it then floats on any surface). */
+export const LOGO_TRANSPARENT = ${art.hasAlpha ? "true" : "false"};
 `,
   );
   console.log(`  ✓ packages/ui/src/logo-data.ts (${Math.round(uri128.length / 1024)} KB + ${Math.round(uri64.length / 1024)} KB)`);
