@@ -11,5 +11,16 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: { port: 5398, strictPort: true },
   preview: { port: 5398 },
-  build: { outDir: "dist", emptyOutDir: true, target: "es2022", sourcemap: false },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    target: "es2022",
+    sourcemap: false,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        download: resolve(__dirname, "download.html"),
+      },
+    },
+  },
 });

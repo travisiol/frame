@@ -44,6 +44,11 @@
     "https://robinhoodchain.blockscout.com/*",
     "https://explorer.testnet.chain.robinhood.com/*",
     "https://ethereum-rpc.publicnode.com/*",
+    "https://eth.drpc.org/*",
+    "https://arb1.arbitrum.io/*",
+    "https://arbitrum-one-rpc.publicnode.com/*",
+    "https://mainnet.base.org/*",
+    "https://base-rpc.publicnode.com/*",
     "https://query1.finance.yahoo.com/*",
     "https://api.coingecko.com/*",
     "https://li.quest/*"

@@ -5,11 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 const __dirname = import.meta.dirname;
 
-/** Served at /demo/ on the public website; at / during local development. */
+/** The web wallet — served at /app/ on the public website; at / during local development. */
 export default defineConfig(({ command }) => ({
   root: __dirname,
   envDir: resolve(__dirname, "../.."),
-  base: command === "build" ? "/demo/" : "/",
+  base: command === "build" ? "/app/" : "/",
   plugins: [react(), tailwindcss()],
   server: { port: 5397, strictPort: true },
   preview: { port: 5397 },

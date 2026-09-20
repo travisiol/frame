@@ -23,15 +23,17 @@ export const BRAND = {
   disclaimer:
     "FRAME is an independent application and is not affiliated with or endorsed by Robinhood Markets, Inc.",
   /** Semantic version of the product (mirrored in the extension manifest by the build). */
-  version: "0.1.0",
+  version: "0.2.0",
   /** Reverse-DNS identifier used for EIP-6963 provider discovery. Set to the real domain before release. */
   rdns: "app.frame.wallet",
   /** Public links — placeholders until the product has a home. */
   links: {
-    website: "https://frame.wallet.example",
+    website: "https://frame-neon-mu.vercel.app",
     github: "https://github.com/",
     x: "https://x.com/",
     support: "mailto:support@frame.wallet.example",
+    /** Official Robinhood Chain resources (independent of FRAME). */
+    chainDocs: "https://docs.robinhood.com/chain/",
   },
   /** Short description for the extension manifest / store listing. */
   description:

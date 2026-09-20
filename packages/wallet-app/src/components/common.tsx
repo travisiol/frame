@@ -150,6 +150,7 @@ export function AssetRow({
   trailingOverride,
   subtitleOverride,
   demoPrice,
+  pending,
 }: {
   token: TokenInfo;
   balance?: string;
@@ -160,6 +161,8 @@ export function AssetRow({
   trailingOverride?: ReactNode;
   subtitleOverride?: ReactNode;
   demoPrice?: boolean;
+  /** Prices are still loading: show a placeholder instead of "unavailable". */
+  pending?: boolean;
 }) {
   return (
     <ListRow
@@ -181,7 +184,7 @@ export function AssetRow({
       trailing={
         trailingOverride ?? (
           <div>
-            <div className="num text-[14px] font-medium text-ink">{valueUsd === null || valueUsd === undefined ? <span className="text-[11px] font-normal text-ink-3">Price unavailable</span> : formatUsd(valueUsd)}</div>
+            <div className="num text-[14px] font-medium text-ink">{valueUsd === null || valueUsd === undefined ? <span className="text-[11px] font-normal text-ink-3">{pending ? "…" : "Price unavailable"}</span> : formatUsd(valueUsd)}</div>
             <div className="mt-0.5 flex items-center justify-end gap-1">
               <PctChange value={change} />
               {demoPrice && <span className="text-[9px] uppercase tracking-wider text-ink-3">demo</span>}
@@ -211,7 +214,8 @@ export function CategoryPill({ token }: { token: TokenInfo }) {
 export function BackupReminder() {
   const snap = useSnapshot();
   const navigate = useNavigate();
-  if (!snap || snap.backupConfirmed || snap.mode === "demo") return null;
+  // Nothing to back up while the wallet only watches addresses (no vault, no phrase).
+  if (!snap || snap.backupConfirmed || snap.mode === "demo" || !snap.accounts.some((a) => a.kind !== "watch")) return null;
   return (
     <Banner tone="warn" title="Back up your recovery phrase" className="mx-3">
       Without it, this wallet cannot be restored if the browser is reset.{" "}

@@ -252,7 +252,7 @@ function Networks() {
             );
           })}
         </div>
-        <p className="mt-3 px-1 text-[11px] leading-relaxed text-ink-3">Ethereum mainnet is available only as a source for bridging into Robinhood Chain. Custom RPC endpoints are configured under Advanced.</p>
+        <p className="mt-3 px-1 text-[11px] leading-relaxed text-ink-3">Ethereum, Arbitrum One and Base are available only as sources for bridging into Robinhood Chain. Custom RPC endpoints are configured under Advanced.</p>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ const app = resolve(here, "..");
 const root = resolve(app, "../..");
 const dist = resolve(app, "dist");
 
-const { BRAND } = await import(new URL("../../../packages/config/src/brand.ts", import.meta.url).href);
+const { BRAND } = await import(new URL("../../../scripts/brand.mjs", import.meta.url).href);
 
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });

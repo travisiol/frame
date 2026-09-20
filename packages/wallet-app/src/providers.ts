@@ -13,9 +13,16 @@ import {
   type SwapProvider,
 } from "@frame/markets";
 
-/** Shared wiring for every surface (extension, demo): DEMO gets labelled mock providers, LIVE only what is actually configured. */
-export function createMarketData(mode: AppMode): MarketDataProvider {
-  return new CachedMarketData(mode === "demo" ? new DemoMarketDataProvider() : new LiveMarketDataProvider());
+export interface MarketDataOptions {
+  /** Same-origin relay for the web app (e.g. "/api/market"); the extension fetches upstreams directly. */
+  relay?: string | null;
+}
+
+/** Shared wiring for every surface (extension, web app): LIVE gets real providers; the simulator (tests, VITE_APP_MODE=demo) gets labelled mocks. */
+export function createMarketData(mode: AppMode, options: MarketDataOptions = {}): MarketDataProvider {
+  if (mode === "demo") return new CachedMarketData(new DemoMarketDataProvider());
+  const relay = options.relay;
+  return new CachedMarketData(new LiveMarketDataProvider({ relay: relay ? (url) => `${relay}?url=${encodeURIComponent(url)}` : undefined }));
 }
 
 export function createSwapProviders(mode: AppMode, market: MarketDataProvider, lifiApiUrl: string | null): SwapProvider[] {

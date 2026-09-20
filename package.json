@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "FRAME — the wallet for onchain markets. Independent self-custodial wallet built for Robinhood Chain.",
+  "type": "module",
   "license": "MIT",
   "workspaces": [
     "packages/*",
@@ -12,12 +13,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "npm run dev -w @frame/demo",
-    "dev:demo": "npm run dev -w @frame/demo",
+    "dev": "npm run dev -w @frame/web",
+    "dev:app": "npm run dev -w @frame/web",
     "dev:landing": "npm run dev -w @frame/landing",
     "build": "npm run build:extension && npm run build:web",
     "build:extension": "npm run build -w @frame/extension",
-    "build:demo": "npm run build -w @frame/demo",
+    "build:app": "npm run build -w @frame/web",
     "build:landing": "npm run build -w @frame/landing",
     "build:web": "node scripts/build-web.mjs",
     "icons": "node scripts/render-icons.mjs",

@@ -76,6 +76,8 @@ export interface WalletServiceOptions {
   persistent: KeyValueStore;
   session: KeyValueStore;
   rpcEnv?: Partial<Record<number, string | undefined>>;
+  /** Same-origin JSON-RPC relay per chain (web app only): ordered after the custom RPC, before the public endpoint. */
+  rpcRelay?: Partial<Record<number, string | undefined>>;
   /** Lower only in tests. */
   kdfIterations?: number;
   now?: () => number;
@@ -169,7 +171,7 @@ export class WalletService implements WalletApi {
       this.gateway = this.demo;
     } else {
       this.demo = null;
-      this.live = new LiveChainGateway(() => ({ env: opts.rpcEnv, custom: this.settings.customRpc }));
+      this.live = new LiveChainGateway(() => ({ env: opts.rpcEnv, custom: this.settings.customRpc, relay: opts.rpcRelay }));
       this.gateway = this.live;
     }
     this.broadcaster = new RpcBroadcaster((chainId) => this.client(chainId));
@@ -350,7 +352,8 @@ export class WalletService implements WalletApi {
       version: BRAND.version,
       mode: this.mode,
       initialized: isEncryptedVaultBlob(vault) || this.accounts.length > 0,
-      locked: this.locked,
+      // A watch-only wallet has no vault, so there is nothing to unlock: never show it a lock screen.
+      locked: this.locked && isEncryptedVaultBlob(vault),
       chainId: this.chainId,
       networkMode: this.mode === "demo" ? "mainnet" : this.settings.networkMode,
       accounts: this.accounts,

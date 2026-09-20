@@ -120,6 +120,8 @@ export function usePrices(tokens: TokenInfo[]) {
 export interface PortfolioState {
   portfolio: Portfolio | null;
   loading: boolean;
+  /** Balances are known but prices are still being fetched — show "loading", never "unavailable". */
+  pricesPending: boolean;
   balancesError: boolean;
   pricesError: boolean;
   refresh: () => void;
@@ -149,6 +151,7 @@ export function usePortfolio(address?: Address): PortfolioState {
   return {
     portfolio,
     loading: balances.isPending || (held.length > 0 && prices.isPending),
+    pricesPending: held.length > 0 && prices.isPending,
     balancesError: balances.isError,
     pricesError: prices.isError,
     refresh: () => {
@@ -227,10 +230,10 @@ export function useAllowances(address?: Address) {
 }
 
 /** ETH balance on Ethereum mainnet (bridge source). */
-export function useSourceChainBalance(address?: Address) {
-  const client = useChainClient(ETHEREUM_MAINNET_ID);
+export function useSourceChainBalance(address?: Address, chainId: number = ETHEREUM_MAINNET_ID) {
+  const client = useChainClient(chainId);
   return useQuery({
-    queryKey: ["balances", ETHEREUM_MAINNET_ID, address, "native"],
+    queryKey: ["balances", chainId, address, "native"],
     queryFn: async () => (await client.getBalance({ address: address! })).toString(),
     enabled: !!address,
     refetchInterval: 20_000,

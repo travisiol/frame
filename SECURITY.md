@@ -55,6 +55,15 @@ web page ──window.postMessage──▶ content script ──runtime.Port─�
 4. **Signer** signs with the keyring account. Reviews expire after 10 minutes and are dropped on lock.
 5. **Broadcaster** submits each signed payload at most once per session; retries never turn into duplicate submissions.
 
+## Web app and same-origin relays
+
+The web app (`apps/web`, served at `/app/`) is the extension's application running in a tab. It keeps the same vault format in the origin's `localStorage` and the session key in `sessionStorage` (per tab). Two Vercel Functions exist only because browsers cannot use the public endpoints reliably:
+
+- `api/rpc.ts` forwards JSON-RPC verbatim to the chain's own RPC — allow-listed chains and methods, `eth_sendRawTransaction` included, nothing else. It sees addresses and signed payloads (what any RPC sees) and never a key, phrase, password or vault.
+- `api/market.ts` forwards an allow-listed set of read-only price URLs (Yahoo chart, CoinGecko) and caches them at the edge.
+
+Neither function logs request bodies. The extension does not use them: it talks to the RPCs directly under its `host_permissions`. A custom RPC configured in Settings is always tried before the relay. The web app's security therefore rests on the origin: only install or open FRAME from its official address.
+
 ## RPC
 
 - Ordered fallback: dedicated provider (env) → user custom RPC → public endpoint. No silent ranking.

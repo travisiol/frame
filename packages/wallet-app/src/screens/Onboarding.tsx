@@ -21,7 +21,7 @@ type Step =
 const ease = [0.2, 0.7, 0.2, 1] as const;
 
 /**
- * Onboarding. Compact (popup / demo phone) is a single column; the full-page
+ * Onboarding. Compact (popup / small screens) is a single column; the full-page
  * dashboard splits into a brand panel with the floating asset field and a
  * centred step card. Steps animate in and out; the last one throws confetti.
  */
@@ -29,13 +29,11 @@ export function Onboarding() {
   const { surface } = useApp();
   const wide = surface === "dashboard";
   const [step, setStep] = useState<Step>({ kind: "welcome" });
-  const snap = useSnapshot();
-  const demo = snap?.mode === "demo";
 
   const view = (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div key={step.kind} className="flex h-full flex-col" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.32, ease }}>
-        {step.kind === "welcome" && <Welcome demo={demo} onCreate={() => setStep({ kind: "password", next: "create" })} onImport={() => setStep({ kind: "password", next: "import" })} onWatch={() => setStep({ kind: "watch" })} />}
+        {step.kind === "welcome" && <Welcome onCreate={() => setStep({ kind: "password", next: "create" })} onImport={() => setStep({ kind: "password", next: "import" })} onWatch={() => setStep({ kind: "watch" })} />}
         {step.kind === "password" && (
           <CreatePassword mode={step.next} onBack={() => setStep({ kind: "welcome" })} onCreated={(mnemonic) => setStep({ kind: "backup", mnemonic })} onPasswordForImport={(password) => setStep({ kind: "import", password })} />
         )}
@@ -49,7 +47,7 @@ export function Onboarding() {
   );
 
   if (!wide) {
-    // Compact surfaces (popup, demo phone) keep the card clean — no field behind the copy.
+    // Compact surfaces (popup, phones) keep the card clean — no field behind the copy.
     return (
       <div className="relative flex h-full flex-col overflow-hidden bg-base">
         <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">{view}</div>
@@ -60,7 +58,7 @@ export function Onboarding() {
   return (
     <div className="flex h-full overflow-hidden bg-base">
       <aside className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-[#040504] p-10 lg:flex">
-        <FloatingField items={FRAME_FLOATING_ITEMS} count={22} seed={9} minSize={30} maxSize={124} />
+        <FloatingField items={FRAME_FLOATING_ITEMS} count={22} seed={9} minSize={30} maxSize={124} avoid={[{ x: 0, y: 26, w: 84, h: 48 }, { x: 0, y: 86, w: 90, h: 14 }, { x: 0, y: 0, w: 40, h: 12 }]} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_50%,rgba(4,5,4,0.05),rgba(4,5,4,0.86)_75%)]" />
         <div className="relative z-10 flex items-center gap-2.5">
           <Logo size={22} className="text-accent" />
@@ -101,7 +99,7 @@ function ChoiceCard({ icon, title, body, onClick, primary }: { icon: ReactNode; 
   );
 }
 
-function Welcome({ demo, onCreate, onImport, onWatch }: { demo: boolean; onCreate: () => void; onImport: () => void; onWatch: () => void }) {
+function Welcome({ onCreate, onImport, onWatch }: { onCreate: () => void; onImport: () => void; onWatch: () => void }) {
   return (
     <div className="flex h-full flex-col px-7 pb-6 pt-10">
       <div className="flex flex-1 flex-col items-center justify-center text-center">
@@ -110,7 +108,6 @@ function Welcome({ demo, onCreate, onImport, onWatch }: { demo: boolean; onCreat
         </motion.span>
         <h1 className="display mt-6 text-[30px] leading-[1] tracking-[-0.03em] text-ink">Welcome to {BRAND.name}</h1>
         <p className="mt-3 text-[14px] text-ink-2">{BRAND.tagline}</p>
-        {demo && <p className="mt-4 rounded-full bg-accent-dim px-3 py-1 text-[11px] font-medium text-accent">Demo — the vault is real, the balances are simulated</p>}
       </div>
       <div className="space-y-2.5">
         <ChoiceCard primary icon={<Icon.Plus size={20} />} title="Create a new wallet" body="A fresh 12-word recovery phrase, encrypted on this device." onClick={onCreate} />
@@ -419,9 +416,9 @@ function WatchOnly({ onBack, onDone }: { onBack: () => void; onDone: () => void 
 
 function Done({ title }: { title: string }) {
   const backend = useBackend();
-  const { surface, allowExpandedToggle } = useApp();
+  const { surface, platform } = useApp();
   const [busy, setBusy] = useState(false);
-  const extensionDashboard = surface === "dashboard" && !allowExpandedToggle;
+  const extensionDashboard = surface === "dashboard" && platform === "extension";
   return (
     <div className="relative flex h-full flex-col items-center justify-center px-7 pb-8 text-center">
       <Confetti />

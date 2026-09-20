@@ -21,7 +21,7 @@ export function HomeScreen() {
   const snap = useSnapshot();
   const account = useSelectedAccount();
   const navigate = useNavigate();
-  const { portfolio, loading, balancesError, refresh } = usePortfolio();
+  const { portfolio, loading, pricesPending, balancesError, refresh } = usePortfolio();
   const tab = useAppStore((s) => s.assetTab);
   const setTab = useAppStore((s) => s.setAssetTab);
   const { hidden } = useTokens();
@@ -92,11 +92,11 @@ export function HomeScreen() {
           ) : portfolio ? (
             <>
               <div className="display num mt-1.5 text-[34px] leading-none text-ink">
-                {portfolio.pricesUnavailable ? <span className="text-ink-3">———</span> : formatUsd(portfolio.totalUsd)}
+                {portfolio.pricesUnavailable ? <span className="text-ink-3">{pricesPending ? "…" : "———"}</span> : formatUsd(portfolio.totalUsd)}
               </div>
               <div className="mt-2 flex items-center gap-2 text-[13px]">
                 {portfolio.pricesUnavailable ? (
-                  <span className="text-warn">Price unavailable — balances shown below</span>
+                  <span className={pricesPending ? "text-ink-3" : "text-warn"}>{pricesPending ? "Loading prices…" : "Price unavailable — balances shown below"}</span>
                 ) : (
                   <>
                     <span className={cx("num", (portfolio.change24hUsd ?? 0) >= 0 ? "text-accent" : "text-loss")}>
@@ -195,7 +195,7 @@ export function HomeScreen() {
                 )}
               </div>
             ) : (
-              filtered.map((h) => <HoldingRow key={h.token.address} holding={h} onClick={() => navigate(`/asset/${h.token.address}`)} />)
+              filtered.map((h) => <HoldingRow key={h.token.address} holding={h} pending={pricesPending} onClick={() => navigate(`/asset/${h.token.address}`)} />)
             )}
           </div>
           {hidden.length > 0 && (
@@ -212,6 +212,6 @@ export function HomeScreen() {
   );
 }
 
-export function HoldingRow({ holding, onClick }: { holding: Holding; onClick: () => void }) {
-  return <AssetRow token={holding.token} balance={holding.formatted} valueUsd={holding.valueUsd} change={holding.change24hPct} priceUsd={holding.priceUsd} onClick={onClick} demoPrice={holding.demoPrice} />;
+export function HoldingRow({ holding, onClick, pending }: { holding: Holding; onClick: () => void; pending?: boolean }) {
+  return <AssetRow token={holding.token} balance={holding.formatted} valueUsd={holding.valueUsd} change={holding.change24hPct} priceUsd={holding.priceUsd} onClick={onClick} demoPrice={holding.demoPrice} pending={pending} />;
 }

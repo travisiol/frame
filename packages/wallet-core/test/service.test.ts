@@ -327,3 +327,20 @@ describe("WalletService — transactions", () => {
     expect(snap.hiddenTokens).not.toContain(USDG.address);
   });
 });
+
+describe("watch-only wallets are never locked", () => {
+  it("reports initialized and unlocked without a vault", async () => {
+    const { service } = makeService();
+    await service.addWatchAccount({ address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266", name: "Treasury" });
+    const snap = await service.getSnapshot();
+    expect(snap.initialized).toBe(true);
+    expect(snap.locked).toBe(false);
+    expect(snap.accounts[0]?.kind).toBe("watch");
+  });
+
+  it("a wallet with a vault still locks", async () => {
+    const { service } = await created();
+    await service.lock();
+    expect((await service.getSnapshot()).locked).toBe(true);
+  });
+});

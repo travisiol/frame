@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseUnits } from "viem";
-import type { BridgeQuote, BridgeQuoteRequest, TxResult, TxReview } from "@frame/types";
-import { ETHEREUM_MAINNET_ID, chainName } from "@frame/config";
+import type { Address, BridgeQuote, BridgeQuoteRequest, TxResult, TxReview } from "@frame/types";
+import { BRIDGE_SOURCE_CHAIN_IDS, OFFICIAL_BRIDGE_URL, chainName } from "@frame/config";
 import { formatTokenAmount, formatUsd } from "@frame/chain";
 import { nativeToken } from "@frame/token-registry";
 import { bestBridgeQuote } from "@frame/markets";
@@ -17,15 +17,18 @@ import { ErrorBanner } from "./Send";
 
 type Phase = "form" | "review" | "success";
 
+const DEFAULT_SOURCE = BRIDGE_SOURCE_CHAIN_IDS[0]!;
+
 export function BridgeScreen() {
-  const { bridgeProviders } = useApp();
+  const { bridgeProviders, openExternal } = useApp();
   const backend = useBackend();
   const snap = useSnapshot();
   const account = useSelectedAccount();
   const navigate = useNavigate();
-  const eth = useMemo(() => nativeToken(ETHEREUM_MAINNET_ID), []);
+  const [fromChain, setFromChain] = useState<number>(DEFAULT_SOURCE);
+  const eth = useMemo(() => nativeToken(fromChain), [fromChain]);
   const price = useTokenPrice(eth);
-  const sourceBalance = useSourceChainBalance(account?.address);
+  const sourceBalance = useSourceChainBalance(account?.address, fromChain);
   const [amount, setAmount] = useState("");
   const [quotes, setQuotes] = useState<{ best: BridgeQuote | null; all: BridgeQuote[]; errors: { providerId: string; error: string }[] } | null>(null);
   const [selected, setSelected] = useState<BridgeQuote | null>(null);
@@ -59,7 +62,7 @@ export function BridgeScreen() {
     if (parsed === null || !account || noProviders) return;
     let cancelled = false;
     setQuoting(true);
-    const req: BridgeQuoteRequest = { fromChainId: ETHEREUM_MAINNET_ID, toChainId: toChain, token: eth, amountIn: parsed.toString(), account: account.address };
+    const req: BridgeQuoteRequest = { fromChainId: fromChain, toChainId: toChain, token: eth, amountIn: parsed.toString(), account: account.address };
     const t = window.setTimeout(() => {
       bestBridgeQuote(bridgeProviders, req)
         .then((r) => {
@@ -75,14 +78,14 @@ export function BridgeScreen() {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [parsed, account, bridgeProviders, eth, toChain, noProviders]);
+  }, [parsed, account, bridgeProviders, eth, fromChain, toChain, noProviders]);
 
   const start = async () => {
     if (!selected?.tx) return;
     setBusy(true);
     setError(null);
     try {
-      const r = await backend.prepareTransaction({ request: selected.tx, meta: { kind: "bridge", provider: selected.providerName, toChain: String(toChain) } });
+      const r = await backend.prepareTransaction({ request: selected.tx, meta: { kind: "bridge", provider: selected.providerName, fromChain: String(fromChain), toChain: String(toChain) } });
       setReview(r);
       setPhase("review");
     } catch (e) {
@@ -117,7 +120,7 @@ export function BridgeScreen() {
       <ScreenHeader
         title={phase === "review" ? "Review" : "Move to Robinhood Chain"}
         onBack={phase === "success" ? undefined : phase === "review" ? () => { if (review) void backend.discardReview({ reviewId: review.reviewId }); setPhase("form"); } : () => goBack("/")}
-        subtitle={`${chainName(ETHEREUM_MAINNET_ID)} → ${chainName(toChain)}`}
+        subtitle={`${chainName(fromChain)} → ${chainName(toChain)}`}
       />
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         {phase === "form" && (
@@ -128,13 +131,18 @@ export function BridgeScreen() {
               </Banner>
             )}
             {noProviders && (
-              <Banner tone="warn" title="No bridge provider configured">
-                Bridging is disabled until a live route provider is enabled.
+              <Banner tone="warn" title="Bridging unavailable">
+                No route provider is configured for this build. You can still use the official bridge below.
               </Banner>
             )}
+            <div className="flex gap-1.5">
+              {BRIDGE_SOURCE_CHAIN_IDS.map((id) => (
+                <SourceChip key={id} chainId={id} address={account?.address} active={id === fromChain} onClick={() => setFromChain(id)} />
+              ))}
+            </div>
             <div className="card px-4 py-3">
               <div className="flex items-center justify-between">
-                <span className="label">From · {chainName(ETHEREUM_MAINNET_ID)}</span>
+                <span className="label">From · {chainName(fromChain)}</span>
                 <button className="text-[12px] text-ink-2 hover:text-ink" onClick={() => balance !== null && setAmount(formatTokenAmount(balance, 18, 18).replace(/,/g, ""))}>
                   {balance === null ? (sourceBalance.isError ? "Balance unavailable" : "Loading balance…") : `Balance ${formatTokenAmount(balance, 18)} ETH`} {balance !== null && <span className="font-semibold text-accent">· Max</span>}
                 </button>
@@ -160,7 +168,7 @@ export function BridgeScreen() {
               <div className="mt-1 text-[12px] text-ink-3">{selected ? `Estimated · ${eta}` : "Arrives in your Robinhood Chain account"}</div>
             </div>
             {exceeds && (
-              <Banner tone="danger" title="Not enough ETH on Ethereum">
+              <Banner tone="danger" title={`Not enough ETH on ${chainName(fromChain)}`}>
                 You hold {balance !== null ? formatTokenAmount(balance, 18) : "0"} ETH there.
               </Banner>
             )}
@@ -192,7 +200,7 @@ export function BridgeScreen() {
                 {selected.demo && (
                   <div className="flex items-center justify-between py-2.5">
                     <span className="text-ink-2">Mode</span>
-                    <span className="text-accent">Demo route</span>
+                    <span className="text-accent">Simulated route</span>
                   </div>
                 )}
               </div>
@@ -201,7 +209,12 @@ export function BridgeScreen() {
             <Button variant="primary" full disabled={!selected?.tx || exceeds || watchOnly} loading={busy} onClick={start}>
               MOVE FUNDS
             </Button>
-            <p className="px-1 text-center text-[11px] text-ink-3">Bridging uses existing bridge protocols through their adapters. The transaction is signed on {chainName(ETHEREUM_MAINNET_ID)} and settles on {chainName(toChain)}.</p>
+            <p className="px-1 text-center text-[11px] text-ink-3">
+              Routes come from existing bridge protocols through their adapters. The transaction is signed on {chainName(fromChain)} and settles on {chainName(toChain)}.
+            </p>
+            <button className="mx-auto flex items-center gap-1 text-[11px] font-medium text-ink-2 hover:text-ink" onClick={() => openExternal(OFFICIAL_BRIDGE_URL)}>
+              Prefer the canonical bridge? Open the official Arbitrum portal <Icon.External size={11} />
+            </button>
           </div>
         )}
 
@@ -209,7 +222,7 @@ export function BridgeScreen() {
           <div className="space-y-3 px-1 pt-1">
             <div className="card px-4 py-4 text-center">
               <div className="label">Move to Robinhood Chain</div>
-              <div className="mt-2 text-[13px] text-ink-2">{chainName(ETHEREUM_MAINNET_ID)}</div>
+              <div className="mt-2 text-[13px] text-ink-2">{chainName(fromChain)}</div>
               <div className="display num text-[22px] text-ink">{amount} ETH</div>
               <div className="my-1 text-ink-3">↓</div>
               <div className="text-[13px] text-ink-2">{chainName(toChain)}</div>
@@ -235,7 +248,7 @@ export function BridgeScreen() {
             <div className="num mt-1 text-[14px] text-ink-2">
               {amount} ETH → {chainName(toChain)} · {eta}
             </div>
-            {result.demo && <div className="mt-2 text-[11px] uppercase tracking-[0.12em] text-accent">Demo — arrives in a few seconds, nothing was broadcast</div>}
+            {result.demo && <div className="mt-2 text-[11px] uppercase tracking-[0.12em] text-accent">Simulated — arrives in a few seconds, nothing was broadcast</div>}
             <div className="mt-4">
               <ExplorerLink url={result.explorerUrl} />
             </div>
@@ -274,5 +287,17 @@ export function BridgeScreen() {
         )}
       </Sheet>
     </div>
+  );
+}
+
+/** One source chain with the account's ETH balance there — so people bridge from where they actually hold funds. */
+function SourceChip({ chainId, address, active, onClick }: { chainId: number; address?: Address; active: boolean; onClick: () => void }) {
+  const balance = useSourceChainBalance(address, chainId);
+  const value = balance.data ? BigInt(balance.data) : null;
+  return (
+    <button onClick={onClick} className={cx("flex min-w-0 flex-1 flex-col items-start rounded-[12px] border px-3 py-2 text-left transition-colors", active ? "border-accent bg-accent-dim" : "border-line bg-card hover:bg-card-2")}>
+      <span className={cx("text-[12px] font-semibold", active ? "text-ink" : "text-ink-2")}>{chainName(chainId)}</span>
+      <span className="num mt-0.5 text-[11px] text-ink-3">{value === null ? (balance.isError ? "—" : "…") : `${formatTokenAmount(value, 18, 4)} ETH`}</span>
+    </button>
   );
 }

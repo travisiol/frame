@@ -62,6 +62,7 @@ const env: AppEnvironment = {
   swapProviders: createSwapProviders(ENV.appMode, market, ENV.lifiApiUrl),
   bridgeProviders: createBridgeProviders(ENV.appMode, market, ENV.lifiApiUrl),
   surface,
+  platform: "extension",
   requestId: params.get("requestId") ?? undefined,
   openDashboard: surface === "dashboard" ? undefined : (path = "/") => void chrome.tabs.create({ url: chrome.runtime.getURL(`dashboard.html#${path}`) }),
   openExternal: (url) => {

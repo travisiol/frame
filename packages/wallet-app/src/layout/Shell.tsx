@@ -60,15 +60,22 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const backend = useBackend();
   const snap = useSnapshot();
   const { portfolio, loading } = usePortfolio();
-  const { surface, allowExpandedToggle } = useApp();
+  const { homeUrl } = useApp();
   const section = sectionOf(path);
   return (
     <div className="flex h-full min-h-0 bg-base text-ink">
       <aside className="hidden w-[220px] shrink-0 flex-col border-r border-line bg-surface md:flex">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <Logo size={22} className="text-accent" />
-          <span className="display text-[15px] tracking-[0.18em]">{BRAND.name}</span>
-        </div>
+        {homeUrl ? (
+          <a href={homeUrl} className="flex items-center gap-2.5 px-5 py-5 transition-opacity hover:opacity-80" title="Back to the website">
+            <Logo size={22} className="text-accent" />
+            <span className="display text-[15px] tracking-[0.18em]">{BRAND.name}</span>
+          </a>
+        ) : (
+          <div className="flex items-center gap-2.5 px-5 py-5">
+            <Logo size={22} className="text-accent" />
+            <span className="display text-[15px] tracking-[0.18em]">{BRAND.name}</span>
+          </div>
+        )}
         <nav className="flex-1 space-y-0.5 px-3">
           {SIDEBAR.map((t) => {
             const active = section === t.path;
@@ -102,17 +109,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <div className="flex-1" />
           <AccountSwitcher />
           <NetworkBadge />
-          {surface === "demo" && allowExpandedToggle && (
-            <IconButton label="Compact view" onClick={() => navigate(path, undefined, { replace: true })}>
-              <Icon.Expand size={16} />
-            </IconButton>
-          )}
           <IconButton label="Lock" onClick={() => void backend.lock()}>
             <Icon.Lock size={16} />
           </IconButton>
         </header>
         <main className="min-h-0 flex-1 overflow-hidden">
-          <div className="mx-auto h-full w-full max-w-[720px] px-2 md:px-4">{children}</div>
+          <div className="mx-auto h-full w-full max-w-[840px] px-2 md:px-4">{children}</div>
         </main>
         <nav className="flex items-stretch border-t border-line bg-surface md:hidden">
           {POPUP_TABS.map((t) => {

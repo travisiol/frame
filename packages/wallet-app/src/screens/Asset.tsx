@@ -79,7 +79,7 @@ export function AssetScreen() {
         </div>
 
         <div className="mt-4">
-          <div className="label">{stock ? "Reference price" : "Current price"}</div>
+          <div className="label">{price.data?.source === "lifi" ? "Onchain price" : stock ? "Reference price" : "Current price"}</div>
           <div className="display num mt-1 text-[28px] leading-none text-ink">
             {price.isPending ? <Skeleton w={120} h={28} /> : priceUsd === null ? <span className="text-[16px] text-warn">Price unavailable</span> : formatUsd(priceUsd)}
           </div>
@@ -87,6 +87,7 @@ export function AssetScreen() {
             <span className="text-ink-2">24H</span>
             <PctChange value={change} />
             {price.data?.demo && <span className="text-[10px] uppercase tracking-wider text-ink-3">demo price</span>}
+            {price.data?.source === "lifi" && <span className="text-[10px] uppercase tracking-wider text-ink-3">onchain · via LI.FI</span>}
             {rangeChange !== null && range !== "1D" && (
               <span className="text-ink-3">
                 · {range} <PctChange value={rangeChange} />

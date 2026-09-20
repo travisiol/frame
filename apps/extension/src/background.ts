@@ -56,6 +56,7 @@ function broadcast(event: WalletEvent) {
   void forwardToProviders(event);
   void maybeNotify(event);
   void manageKeepAlive();
+  void updateBadge();
 }
 
 async function forwardToProviders(event: WalletEvent) {
@@ -115,13 +116,26 @@ async function openApprovalWindow(requestId: string) {
   // The toolbar popup, if open, shows the queue itself.
   if ([...uiPorts].some((p) => p.name === CHANNEL.uiPort && p.sender?.url?.includes("popup.html"))) return;
   const url = chrome.runtime.getURL(`approval.html?requestId=${encodeURIComponent(requestId)}`);
-  const current = await chrome.windows.getLastFocused().catch(() => undefined);
-  const width = 380;
-  const height = 640;
-  const left = current?.left !== undefined && current.width !== undefined ? Math.max(0, current.left + current.width - width - 16) : undefined;
-  const top = current?.top !== undefined ? Math.max(0, current.top + 60) : undefined;
-  const win = await chrome.windows.create({ url, type: "popup", width, height, left, top, focused: true });
-  if (win?.id !== undefined) approvalWindows.set(requestId, win.id);
+  try {
+    const current = await chrome.windows.getLastFocused().catch(() => undefined);
+    const width = 380;
+    const height = 640;
+    const left = current?.left !== undefined && current.width !== undefined ? Math.max(0, current.left + current.width - width - 16) : undefined;
+    const top = current?.top !== undefined ? Math.max(0, current.top + 60) : undefined;
+    const win = await chrome.windows.create({ url, type: "popup", width, height, left, top, focused: true });
+    if (win?.id !== undefined) approvalWindows.set(requestId, win.id);
+  } catch {
+    // Some environments cannot open windows (kiosk, headless, some window managers).
+    // The request stays queued: the badge counts it and the toolbar popup shows it.
+  }
+}
+
+/** Badge on the toolbar icon while dApp requests wait for a decision. */
+async function updateBadge() {
+  if (!chrome.action?.setBadgeText) return;
+  const pending = service.pendingRequestIds().length;
+  await chrome.action.setBadgeText({ text: pending ? String(pending) : "" }).catch(() => {});
+  if (pending) await chrome.action.setBadgeBackgroundColor({ color: "#A8FF60" }).catch(() => {});
 }
 
 chrome.windows.onRemoved.addListener((windowId) => {

@@ -6,7 +6,9 @@ import type { WalletEvent } from "@frame/types";
 import { ToastProvider } from "@frame/ui";
 import { useAppStore } from "./state/store";
 
-export type Surface = "popup" | "dashboard" | "approval" | "demo";
+export type Surface = "popup" | "dashboard" | "approval";
+/** Where the application runs — drives platform-specific copy such as "pin FRAME to the toolbar". */
+export type Platform = "extension" | "web";
 
 export interface AppEnvironment {
   backend: WalletBackend;
@@ -14,6 +16,7 @@ export interface AppEnvironment {
   swapProviders: SwapProvider[];
   bridgeProviders: BridgeProvider[];
   surface: Surface;
+  platform: Platform;
   /** Opens the full-page dashboard (extension: new tab). */
   openDashboard?: (path?: string) => void;
   /** Opens an external URL (explorer, docs). */
@@ -22,8 +25,8 @@ export interface AppEnvironment {
   requestId?: string;
   /** Closes the current window (approval popup). */
   closeWindow?: () => void;
-  /** Whether the demo phone frame should offer the "expanded" toggle. */
-  allowExpandedToggle?: boolean;
+  /** Web app: the website the dashboard brand links back to. */
+  homeUrl?: string;
   /** Called by the shell when the wallet emits an event (extension: notifications). */
   onEvent?: (event: WalletEvent) => void;
 }

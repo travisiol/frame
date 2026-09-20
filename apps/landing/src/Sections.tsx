@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
-import { BRAND } from "@frame/config";
+import { BRAND, CHAIN_DOCS_URL, ENV, OFFICIAL_BRIDGE_URL } from "@frame/config";
 import { FRAME_FLOATING_ITEMS, FloatingField, Icon, Logo, PctChange, TokenAvatar, cx } from "@frame/ui";
 
-export const DEMO_URL = (import.meta.env.VITE_DEMO_URL as string | undefined) ?? "/demo/";
-export const EXT_URL = BRAND.links.github;
+/** The hosted web wallet (LIVE, Robinhood Chain mainnet). */
+export const APP_URL = ENV.appUrl;
+/** The extension download page. */
+export const DOWNLOAD_URL = ENV.downloadUrl;
 
-const ease = [0.2, 0.7, 0.2, 1] as const;
+export const ease = [0.2, 0.7, 0.2, 1] as const;
 
 function useIsDesktop() {
   const [desktop, setDesktop] = useState(() => (typeof window !== "undefined" ? window.matchMedia("(min-width: 900px)").matches : true));
@@ -26,26 +28,26 @@ function useIsDesktop() {
 export function Nav() {
   return (
     <>
-      <a href="#top" className="nav-corner left-5 rounded-full px-2 py-1.5">
+      <a href="/" className="nav-corner left-5 rounded-full px-2 py-1.5">
         <Logo size={22} className="text-accent" />
         <span className="display text-[15px] tracking-[0.18em] text-ink">{BRAND.name}</span>
       </a>
       <nav className="pill-nav hidden md:flex">
-        <a href="#portfolio" className="pill-nav-link">
+        <a href="/#portfolio" className="pill-nav-link">
           Portfolio
         </a>
-        <a href="#move" className="pill-nav-link">
+        <a href="/#move" className="pill-nav-link">
           Move money
         </a>
-        <a href="#security" className="pill-nav-link">
+        <a href="/#security" className="pill-nav-link">
           Security
         </a>
-        <a href={DEMO_URL} className="pill-nav-link">
-          Demo
+        <a href={APP_URL} className="pill-nav-link">
+          Web app
         </a>
       </nav>
       <div className="nav-corner right-5">
-        <a href="#get" className="pill-cta pill-cta-lime pill-cta-sm">
+        <a href={DOWNLOAD_URL} className="pill-cta pill-cta-lime pill-cta-sm">
           Get {BRAND.name}
         </a>
       </div>
@@ -74,11 +76,11 @@ export function Hero() {
             Stocks. Crypto. RWA. <span className="text-ink">One wallet.</span>
           </motion.p>
           <motion.div className="mt-9 flex flex-wrap items-center justify-center gap-3" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease, delay: 0.42 }}>
-            <a href="#get" className="pill-cta pill-cta-lime">
-              <Icon.Layers size={18} /> Get {BRAND.name}
+            <a href={DOWNLOAD_URL} className="pill-cta pill-cta-lime">
+              <Icon.Layers size={18} /> Download for desktop
             </a>
-            <a href={DEMO_URL} className="pill-cta pill-cta-ink">
-              View demo
+            <a href={APP_URL} className="pill-cta pill-cta-ink">
+              Open the web app
             </a>
           </motion.div>
           <motion.p className="mt-8 text-[12px] text-ink-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.7 }}>
@@ -263,16 +265,16 @@ export function Principles() {
 }
 
 const STATS = [
-  ["60", "verified Stock Tokens in the registry"],
-  ["2", "networks — Robinhood Chain mainnet and testnet"],
+  ["60", "verified Stock Tokens, by contract address"],
+  ["3", "chains to bridge from — Ethereum, Arbitrum, Base"],
   ["0", "keys, phrases or passwords that leave your device"],
   ["1", "wallet for stocks, crypto and RWA"],
 ] as const;
 
-const BROWSERS = [
-  { name: "Chrome", note: "Google Chrome 116+" },
-  { name: "Brave", note: "Brave, latest" },
-  { name: "Edge", note: "Microsoft Edge 116+" },
+export const BROWSERS = [
+  { key: "chrome", name: "Chrome", note: "Google Chrome 116+" },
+  { key: "brave", name: "Brave", note: "Brave, latest" },
+  { key: "edge", name: "Edge", note: "Microsoft Edge 116+" },
 ] as const;
 
 export function GetStarted() {
@@ -298,11 +300,11 @@ export function GetStarted() {
             Get {BRAND.name}.
           </motion.h2>
           <motion.div className="mt-9 flex flex-wrap justify-center gap-3" initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, ease, delay: 0.1 }}>
-            <a href={EXT_URL} target="_blank" rel="noreferrer" className="pill-cta pill-cta-lime">
-              <Icon.Layers size={18} /> Get {BRAND.name} for desktop
+            <a href={DOWNLOAD_URL} className="pill-cta pill-cta-lime">
+              <Icon.Layers size={18} /> Download for desktop
             </a>
-            <a href={DEMO_URL} className="pill-cta pill-cta-ink">
-              Try the demo first
+            <a href={APP_URL} className="pill-cta pill-cta-ink">
+              Open the web app
             </a>
           </motion.div>
         </div>
@@ -317,7 +319,7 @@ export function GetStarted() {
           </h3>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {BROWSERS.map((b, i) => (
-              <motion.a key={b.name} href={EXT_URL} target="_blank" rel="noreferrer" className="browser-card text-left" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, ease, delay: i * 0.08 }}>
+              <motion.a key={b.name} href={`${DOWNLOAD_URL}?for=${b.key}`} className="browser-card text-left" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, ease, delay: i * 0.08 }}>
                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-card-2 text-ink">
                   <Icon.Globe size={22} />
                 </span>
@@ -331,7 +333,9 @@ export function GetStarted() {
               </motion.a>
             ))}
           </div>
-          <p className="mt-6 text-[12px] text-ink-3">Not on the Web Store yet — build from source and load the unpacked extension. Instructions in the repository.</p>
+          <p className="mt-6 text-[12px] text-ink-3">
+            Direct download, version {BRAND.version}. {BRAND.name} is not on the Chrome Web Store yet — installing takes a minute and the download page walks you through it.
+          </p>
         </div>
       </div>
     </section>
@@ -341,6 +345,12 @@ export function GetStarted() {
 // ---------------------------------------------------------------------------
 // Footer
 // ---------------------------------------------------------------------------
+
+const FOOTER_LINKS: [string, [string, string][]][] = [
+  ["Product", [["Web app", APP_URL], ["Download", DOWNLOAD_URL], ["Security", "/#security"]]],
+  ["Robinhood Chain", [["Explorer", "https://robinhoodchain.blockscout.com"], ["Official bridge", OFFICIAL_BRIDGE_URL], ["Documentation", CHAIN_DOCS_URL]]],
+  ["Networks", [["Robinhood Chain · 4663", "https://robinhoodchain.blockscout.com"], ["Testnet · 46630", "https://explorer.testnet.chain.robinhood.com"]]],
+];
 
 export function Footer() {
   return (
@@ -352,17 +362,15 @@ export function Footer() {
               <Logo size={22} className="text-accent" />
               <span className="display text-[15px] tracking-[0.18em] text-ink">{BRAND.name}</span>
             </div>
-            <p className="mt-4 max-w-[36ch] text-[13px] leading-relaxed text-ink-2">{BRAND.tagline} {BRAND.positioning}</p>
+            <p className="mt-4 max-w-[36ch] text-[13px] leading-relaxed text-ink-2">
+              {BRAND.tagline} {BRAND.positioning}
+            </p>
           </div>
-          {[
-            ["Product", [["Demo", DEMO_URL], ["Extension", EXT_URL], ["Security", "#security"]]],
-            ["Resources", [["Source code", BRAND.links.github], ["Architecture", `${BRAND.links.github}`], ["Support", BRAND.links.support]]],
-            ["Robinhood Chain", [["Explorer", "https://robinhoodchain.blockscout.com"], ["Testnet explorer", "https://explorer.testnet.chain.robinhood.com"]]],
-          ].map(([title, links]) => (
-            <div key={title as string}>
-              <div className="label">{title as string}</div>
+          {FOOTER_LINKS.map(([title, links]) => (
+            <div key={title}>
+              <div className="label">{title}</div>
               <ul className="mt-3 space-y-2 text-[14px]">
-                {(links as [string, string][]).map(([l, h]) => (
+                {links.map(([l, h]) => (
                   <li key={l}>
                     <a href={h} className="text-ink-2 transition-colors hover:text-ink" target={h.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
                       {l}
@@ -374,7 +382,9 @@ export function Footer() {
           ))}
         </div>
         <div className="big-wordmark mt-12 text-center">{BRAND.name}</div>
-        <p className="mt-6 max-w-[760px] text-[12px] leading-relaxed text-ink-3">{BRAND.disclaimer} Stock Tokens provide tokenized exposure to the referenced asset; holding one is not ownership of the underlying equity. Figures shown in illustrations are examples, not live quotes.</p>
+        <p className="mt-6 max-w-[760px] text-[12px] leading-relaxed text-ink-3">
+          {BRAND.disclaimer} Stock Tokens provide tokenized exposure to the referenced asset; holding one is not ownership of the underlying equity. Figures shown in illustrations are examples, not live quotes.
+        </p>
       </div>
     </footer>
   );

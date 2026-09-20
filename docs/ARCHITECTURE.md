@@ -10,7 +10,8 @@ interface AppEnvironment {
   market: MarketDataProvider;      // prices, history, market status
   swapProviders: SwapProvider[];   // liquidity adapters (may be empty)
   bridgeProviders: BridgeProvider[];
-  surface: "popup" | "dashboard" | "approval" | "demo";
+  surface: "popup" | "dashboard" | "approval";
+  platform: "extension" | "web";
   openDashboard?, openExternal, requestId?, closeWindow?
 }
 ```
@@ -20,7 +21,7 @@ interface AppEnvironment {
 | `popup` | `apps/extension/popup.html` (380×600) | `chrome.runtime` messaging → background service worker |
 | `dashboard` | `apps/extension/dashboard.html` (full tab: sidebar, table, chart) | same |
 | `approval` | `apps/extension/approval.html?requestId=…` (window opened by the background for a dApp request) | same |
-| `demo` | `apps/demo` (phone frame, "Expanded view" switches to `dashboard`) | `WalletService` in-process on `DemoChain` |
+| web app | `apps/web` (`dashboard` on wide screens, the `popup` layout on phones) | `WalletService` in-process on Robinhood Chain, RPC and prices through the same-origin relays (`api/`) |
 
 Screens are routed by a tiny hash router (`nav.ts`), so `dashboard.html#/markets` and `#/asset/0x…` are shareable inside the extension. State: a zustand store holds the latest `WalletSnapshot`; TanStack Query owns balances, prices, activity and allowances with refetch intervals; the `AppProvider` re-fetches the snapshot on every wallet event.
 
@@ -75,12 +76,12 @@ Helpers: `findToken` (by address only), `findBySymbol` (may return several — n
 
 ## Demo chain
 
-`DemoChain` is an in-memory JSON-RPC subset: balances, fees, nonces, `eth_call` for ERC-20 views, `eth_estimateGas`, receipts, and `eth_sendRawTransaction` that **parses and recovers the signer of real signed transactions** and applies them to a ledger (transfers, approvals with allowance checks, swaps priced from the demo table, a bridge that delivers a few seconds later). Nothing is broadcast anywhere; every result carries `demo: true`.
+`DemoChain` (the test simulator, `VITE_APP_MODE=demo`) is an in-memory JSON-RPC subset: balances, fees, nonces, `eth_call` for ERC-20 views, `eth_estimateGas`, receipts, and `eth_sendRawTransaction` that **parses and recovers the signer of real signed transactions** and applies them to a ledger (transfers, approvals with allowance checks, swaps priced from the demo table, a bridge that delivers a few seconds later). Nothing is broadcast anywhere; every result carries `demo: true`.
 
 ## Build
 
 - Extension: `apps/extension/scripts/build.mjs` → pages + background as ES modules (`vite.config.ts`), content script and inpage provider as IIFEs (`vite.content.config.ts`, `vite.inpage.config.ts`), manifest filled from `BRAND`, CSP and inline-script checks.
-- Website: `scripts/build-web.mjs` → landing at `/`, demo at `/demo/` (Vercel serves `apps/landing/dist`, see `vercel.json`).
+- Website: `scripts/build-web.mjs` → extension build → landing + `/download` → packaged zip + `latest.json` under `/downloads/` → web app at `/app/`. Vercel serves `apps/landing/dist` and runs `api/rpc.ts` + `api/market.ts` as functions (see `vercel.json`).
 - Icons: `scripts/render-icons.mjs` rasterises the logo geometry (three rectangles on a rounded tile) to PNG with a built-in encoder — no image dependency.
 
 ## Future (architected, not built)

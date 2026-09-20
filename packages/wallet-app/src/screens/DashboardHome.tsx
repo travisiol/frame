@@ -25,7 +25,7 @@ export function DashboardHome() {
   const account = useSelectedAccount();
   const navigate = useNavigate();
   const { market } = useApp();
-  const { portfolio, loading, balancesError, refresh } = usePortfolio();
+  const { portfolio, loading, pricesPending, balancesError, refresh } = usePortfolio();
   const tab = useAppStore((s) => s.assetTab);
   const setTab = useAppStore((s) => s.setAssetTab);
   const { hidden } = useTokens();
@@ -62,7 +62,7 @@ export function DashboardHome() {
 
   return (
     <div className="h-full overflow-y-auto py-4">
-      <div className="grid gap-4 md:grid-cols-[1fr_260px]">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
         <div className="card px-5 py-4">
           <div className="flex items-start justify-between">
             <div>
@@ -73,10 +73,10 @@ export function DashboardHome() {
                 <div className="display mt-1 text-[36px] text-ink-3">———</div>
               ) : (
                 <>
-                  <div className="display num mt-1 text-[36px] leading-none">{portfolio?.pricesUnavailable ? <span className="text-ink-3">———</span> : formatUsd(portfolio?.totalUsd ?? 0)}</div>
+                  <div className="display num mt-1 text-[36px] leading-none">{portfolio?.pricesUnavailable ? pricesPending ? <Skeleton w={180} h={32} /> : <span className="text-ink-3">———</span> : formatUsd(portfolio?.totalUsd ?? 0)}</div>
                   <div className="mt-2 flex items-center gap-2 text-[13px]">
                     {portfolio?.pricesUnavailable ? (
-                      <span className="text-warn">Price unavailable</span>
+                      <span className={pricesPending ? "text-ink-3" : "text-warn"}>{pricesPending ? "Loading prices…" : "Price unavailable"}</span>
                     ) : (
                       <>
                         <span className={cx("num", (portfolio?.change24hUsd ?? 0) >= 0 ? "text-accent" : "text-loss")}>{portfolio?.change24hUsd === null || portfolio?.change24hUsd === undefined ? "—" : formatUsd(portfolio.change24hUsd, { signed: true })} today</span>
@@ -217,7 +217,7 @@ export function DashboardHome() {
                       </div>
                     </div>
                   </td>
-                  <td className="num px-3 py-2.5 text-right text-ink">{h.priceUsd === null ? <span className="text-[11px] text-ink-3">unavailable</span> : formatUsd(h.priceUsd)}</td>
+                  <td className="num px-3 py-2.5 text-right text-ink">{h.priceUsd === null ? <span className="text-[11px] text-ink-3">{pricesPending ? "…" : "unavailable"}</span> : formatUsd(h.priceUsd)}</td>
                   <td className="px-3 py-2.5 text-right">
                     <PctChange value={h.change24hPct} />
                   </td>

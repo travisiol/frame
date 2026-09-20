@@ -1,4 +1,4 @@
-import { Footer, GetStarted, Hero, Marquee, Nav, PinnedFeature, Principles, DEMO_URL } from "./Sections";
+import { APP_URL, Footer, GetStarted, Hero, Marquee, Nav, PinnedFeature, Principles } from "./Sections";
 import { ApprovalsScreen, AssetScreen, BridgeScreen, ConnectScreen, LockScreen, MarketsScreen, PortfolioScreen, ReviewScreen, SendScreen, SwapScreen } from "./Screens";
 
 export function Landing() {
@@ -23,7 +23,7 @@ export function Landing() {
           { label: "Markets", body: "Search NVDA, AAPL, SPY — or paste any contract and see at a glance whether it is verified.", screen: <MarketsScreen />, tint: "cool" },
           { label: "Asset", body: "Reference price, 24h move, your position. Tokenized exposure, clearly labelled. Never a made-up cost basis.", screen: <AssetScreen />, tint: "plain" },
         ]}
-        cta={{ label: "Open the demo", href: DEMO_URL }}
+        cta={{ label: "Open the web app", href: APP_URL }}
       />
 
       <PinnedFeature
@@ -39,9 +39,9 @@ export function Landing() {
         items={[
           { label: "Send", body: "Checksum checks, contract warnings and the full address on the confirmation screen.", screen: <SendScreen />, tint: "lime" },
           { label: "Swap", body: "Routes compared by what you actually receive after fees. Exact approvals, never unlimited by default.", screen: <SwapScreen />, tint: "cool" },
-          { label: "Bridge", body: "Ethereum to Robinhood Chain in one flow, through existing bridges. No bridge jargon.", screen: <BridgeScreen />, tint: "warm" },
+          { label: "Bridge", body: "Ethereum, Arbitrum or Base to Robinhood Chain in one flow, through existing bridges. No bridge jargon.", screen: <BridgeScreen />, tint: "warm" },
         ]}
-        cta={{ label: "Try a swap in the demo", href: DEMO_URL }}
+        cta={{ label: "Swap in the web app", href: APP_URL }}
       />
 
       <PinnedFeature
