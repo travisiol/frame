@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { BRAND } from "@frame/config";
 import { humanizeError } from "@frame/transaction-engine";
-import { Button, Icon, Logo, PasswordField } from "@frame/ui";
+import { Banner, Button, Dialog, Icon, Logo, PasswordField } from "@frame/ui";
 import { useBackend } from "../context";
 import { useSnapshot } from "../state/store";
 import { NetworkBadge } from "../components/common";
@@ -12,6 +12,9 @@ export function LockScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [ack, setAck] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,6 +29,21 @@ export function LockScreen() {
       setError(h.code === "INVALID_PASSWORD" ? "Incorrect password. Try again." : h.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const closeReset = () => {
+    setConfirmReset(false);
+    setAck(false);
+  };
+
+  const reset = async () => {
+    setResetting(true);
+    try {
+      await backend.resetDevice();
+    } finally {
+      setResetting(false);
+      closeReset();
     }
   };
 
@@ -44,11 +62,41 @@ export function LockScreen() {
           UNLOCK
         </Button>
       </form>
+      <button className="mt-4 text-[12px] font-medium text-ink-2 transition-colors hover:text-ink" onClick={() => setConfirmReset(true)}>
+        Forgot password?
+      </button>
       <div className="mt-6 flex items-center gap-2">
         <NetworkBadge />
         {snap?.mode === "demo" && <span className="text-[11px] uppercase tracking-[0.12em] text-ink-3">Demo</span>}
       </div>
       {snap?.settings.previewWhenLocked && <p className="mt-3 max-w-[280px] text-center text-[11px] text-ink-3">Balances are hidden while locked. Preview mode is enabled: unlock to see and use your portfolio.</p>}
+
+      <Dialog
+        open={confirmReset}
+        onClose={closeReset}
+        title="Reset this device?"
+        footer={
+          <>
+            <Button size="sm" onClick={closeReset}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="danger" loading={resetting} disabled={!ack} onClick={() => void reset()}>
+              Reset this device
+            </Button>
+          </>
+        }
+      >
+        <Banner tone="danger" title="A forgotten password cannot be recovered">
+          {BRAND.name} never stores your password — only you know it, so there is no way to unlock this vault without it.
+        </Banner>
+        <p className="mt-3">
+          Resetting removes {BRAND.name}&apos;s copy of this wallet from this device only. If you have its 12-word recovery phrase or a private key, you can restore the same accounts here or anywhere, right after. If you don&apos;t have either, the funds in
+          this wallet become unreachable from any device.
+        </p>
+        <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-[12px] leading-relaxed">
+          <input type="checkbox" className="mt-0.5 accent-[#A8FF60]" checked={ack} onChange={(e) => setAck(e.target.checked)} />I have the recovery phrase or private key, or I accept that this wallet&apos;s funds become unreachable.
+        </label>
+      </Dialog>
     </div>
   );
 }

@@ -482,6 +482,40 @@ export class WalletService implements WalletApi {
     await this.opts.session.set(SESSION.lastActivity, this.now());
   }
 
+  /**
+   * "Forgot password?" — wipes every trace of the wallet from THIS device
+   * (this browser profile, or this extension install) and returns to
+   * onboarding. It does not touch anything elsewhere: a recovery phrase or
+   * private key still restores the same accounts on any device. There is no
+   * way to skip the password otherwise — the vault key is never stored
+   * anywhere unencrypted, so a forgotten password cannot be recovered, only
+   * replaced by starting over.
+   */
+  async resetDevice(): Promise<void> {
+    this.keyring?.lock();
+    this.keyring = null;
+    if (this.keyBits) zeroize(this.keyBits);
+    this.keyBits = null;
+    this.reviews.clear();
+    this.queue.rejectAll(RpcError.internal("The wallet was reset on this device."));
+    await this.opts.persistent.clear();
+    await this.opts.session.clear();
+    this.clients.clear();
+    this.accounts = [];
+    this.selectedId = null;
+    this.backupConfirmed = false;
+    this.settings = { ...DEFAULT_SETTINGS, networkMode: this.opts.defaultNetworkMode };
+    this.addressBook = [];
+    this.watchlist = ["NVDA", "AAPL", "TSLA", "SPY"];
+    this.hiddenTokens = [];
+    this.customTokens = [];
+    this.localTx = [];
+    this.balanceBaseline = {};
+    this.incoming = [];
+    this.emit({ type: "locked" });
+    this.emit({ type: "state" });
+  }
+
   // ---------------------------------------------------------------------------
   // WalletApi: accounts
   // ---------------------------------------------------------------------------

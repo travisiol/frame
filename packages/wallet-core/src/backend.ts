@@ -45,6 +45,8 @@ export interface WalletApi {
   lock(): Promise<void>;
   /** User activity ping — resets the auto-lock timer. */
   touch(): Promise<void>;
+  /** "Forgot password?" — wipes this device's copy of the wallet and returns to onboarding. Any recovery phrase or private key still restores it elsewhere. */
+  resetDevice(): Promise<void>;
 
   // --- accounts ------------------------------------------------------------
   createAccount(p: { name?: string; phrase?: number }): Promise<Account>;
@@ -112,6 +114,7 @@ export const WALLET_API_METHODS: readonly WalletApiMethod[] = [
   "unlock",
   "lock",
   "touch",
+  "resetDevice",
   "createAccount",
   "importAccount",
   "renameAccount",
